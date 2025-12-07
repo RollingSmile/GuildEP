@@ -1,2 +1,2 @@
-# GuildEP
-Rolling addon for Tel'Abim, inspired by ShootyEPGP
+# RetRoll
+Rolling addon for TWoW Tel'Abim Ret, heavily modified and incompatible with shootyepgp
