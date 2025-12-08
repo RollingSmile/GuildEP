@@ -2,6 +2,30 @@
 GuildRoll_RollPos = GuildRoll_RollPos or { x = 400, y = 300 }
 GuildRoll_showRollWindow = GuildRoll_showRollWindow == nil and true or GuildRoll_showRollWindow
 
+-- Helper: try to find the EditBox for a StaticPopup dialog robustly
+local function GetVisibleStaticPopupEditBox(dialog)
+    -- Try using the dialog passed in (if any)
+    if dialog and dialog.GetName then
+        local name = dialog:GetName()
+        if name then
+            local eb = _G[name .. "EditBox"]
+            if eb then return eb end
+        end
+    end
+
+    -- Fallback: scan known StaticPopup frames for a shown one
+    local num = STATICPOPUP_NUMDIALOGS or 4
+    for i = 1, num do
+        local dlg = _G["StaticPopup" .. i]
+        if dlg and dlg:IsShown() then
+            local eb = _G[dlg:GetName() .. "EditBox"]
+            if eb then return eb end
+        end
+    end
+
+    return nil
+end
+
 -- Function to execute commands
 local function ExecuteCommand(command)
     if command == "roll 101" then
@@ -31,21 +55,29 @@ local function ExecuteCommand(command)
             hasEditBox = 1,
             maxLetters = 5,
             OnAccept = function(self)
-                local editBox = _G[self:GetName().."EditBox"]
+                -- Use helper to get the editbox robustly
+                local editBox = GetVisibleStaticPopupEditBox(self)
                 local number = tonumber(editBox and editBox:GetText())
                 if number ~= nil then
-                    local bonus = GuildRoll:calculateBonus(number)
-                    if bonus == nil then
-                        print("Invalid number entered. Valid values: 0,1 or 2..15")
+                    if GuildRoll and GuildRoll.calculateBonus then
+                        local bonus = GuildRoll:calculateBonus(number)
+                        if bonus == nil then
+                            print("Invalid number entered. Valid values: 0,1 or 2..15")
+                        else
+                            if GuildRoll.RollCommand then
+                                GuildRoll:RollCommand(true, bonus)
+                            end
+                        end
                     else
-                        GuildRoll:RollCommand(true, bonus)
+                        print("GuildRoll not available.")
                     end
                 else
                     print("Invalid number entered.")
                 end
             end,
             OnShow = function(self)
-                local editBox = _G[self:GetName().."EditBox"]
+                -- Use helper and guard against nil
+                local editBox = GetVisibleStaticPopupEditBox(self)
                 if editBox then
                     editBox:SetText("")
                     editBox:SetFocus()
@@ -57,22 +89,30 @@ local function ExecuteCommand(command)
                 end
             end,
             EditBoxOnEnterPressed = function(editBox)
-                local parent = editBox:GetParent()
-                local number = tonumber(editBox:GetText())
+                local parent = editBox and editBox:GetParent()
+                local number = tonumber(editBox and editBox:GetText())
                 if number ~= nil then
-                    local bonus = GuildRoll:calculateBonus(number)
-                    if bonus == nil then
-                        print("Invalid number entered. Valid values: 0,1 or 2..15")
+                    if GuildRoll and GuildRoll.calculateBonus then
+                        local bonus = GuildRoll:calculateBonus(number)
+                        if bonus == nil then
+                            print("Invalid number entered. Valid values: 0,1 or 2..15")
+                        else
+                            if GuildRoll.RollCommand then
+                                GuildRoll:RollCommand(true, bonus)
+                            end
+                        end
                     else
-                        GuildRoll:RollCommand(true, bonus)
+                        print("GuildRoll not available.")
                     end
                 else
                     print("Invalid number entered.")
                 end
-                parent:Hide()
+                if parent and parent.Hide then parent:Hide() end
             end,
-            EditBoxOnEscapePressed = function(self)
-                self:GetParent():Hide()
+            EditBoxOnEscapePressed = function(editBox)
+                -- Callback can be invoked with the editBox as argument; guard it
+                local parent = editBox and editBox:GetParent()
+                if parent and parent.Hide then parent:Hide() end
             end,
             timeout = 0,
             exclusive = 1,
@@ -228,18 +268,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     if event ~= "GUILD_ROSTER_UPDATE" and event ~= "PLAYER_LOGIN" then
         return
     end
-
-    -- Rebuild the options table fresh based on current CSR visibility
-    local newOptions = {
-        { "EP(MS)", "roll ep" },
-        { "SR", "roll sr" },
-        { "CSR", "roll csr" },
-        { "101", "roll 101" },
-        { "100", "roll 100" },
-        { "99", "roll 99" },
-        { "98", "roll 98" },
-        { "Standings", "show ep" }
-    }
     
     -- Clear existing option widgets safely
     if rollOptionsFrame then
