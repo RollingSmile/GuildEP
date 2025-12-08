@@ -23,34 +23,38 @@ local function UpdateRankInfo()
     local playerName = UnitName("player")
     local numGuildMembers = GetNumGuildMembers(true)
     
-    -- Find Core Raider rank index by scanning guild members
+    -- Find Core Raider rank index by scanning guild members once
+    -- This is more efficient than calling GuildControlGetRankName for every member
     coreRaiderRankIndex = nil
+    local ranksScanned = {}
+    
     for i = 1, numGuildMembers do
         local name, _, rankIndex, _, _, _, _, _, _, _ = GetGuildRosterInfo(i)
-        if name then
-            -- Get the rank name for this member's rank
+        if name and rankIndex and not ranksScanned[rankIndex] then
+            ranksScanned[rankIndex] = true
             local numRanks = GuildControlGetNumRanks()
-            if rankIndex and rankIndex >= 0 and rankIndex < numRanks then
+            if rankIndex >= 0 and rankIndex < numRanks then
                 local rankName = GuildControlGetRankName(rankIndex + 1)
-                if rankName == "Core Raider" and not coreRaiderRankIndex then
+                if rankName == "Core Raider" then
                     coreRaiderRankIndex = rankIndex
                 end
             end
+        end
+        
+        -- Also capture player's rank index while we're scanning
+        if name == playerName then
+            playerRankIndex = rankIndex
+        end
+        
+        -- Early exit if we found both
+        if coreRaiderRankIndex and playerRankIndex then
+            break
         end
     end
     
     -- Use default if Core Raider rank not found
     if not coreRaiderRankIndex then
         coreRaiderRankIndex = DEFAULT_REQUIRED_RANK_INDEX
-    end
-    
-    -- Find player's rank index
-    for i = 1, numGuildMembers do
-        local name, _, rankIndex = GetGuildRosterInfo(i)
-        if name == playerName then
-            playerRankIndex = rankIndex
-            break
-        end
     end
     
     -- Check if CSR is allowed (lower rankIndex = higher rank)
@@ -71,11 +75,11 @@ local function ExecuteCommand(command)
         RandomRoll(1, 98)
     elseif command == "ret ms" then
         if GuildRoll and GuildRoll.RollCommand then
-            GuildRoll:RollCommand(false, false,false, 0)
+            GuildRoll:RollCommand(false, 0)
         end
     elseif command == "ret sr" then
         if GuildRoll and GuildRoll.RollCommand then
-            GuildRoll:RollCommand(true, false,false, 0)
+            GuildRoll:RollCommand(true, 0)
         end
     elseif command == "ret csr" then
         -- Use static popup dialog to input bonus
@@ -92,7 +96,7 @@ local function ExecuteCommand(command)
                 if bonus == nil then
                     print("Invalid number entered. Please enter a number between 0 and 15.")
                 else
-                    GuildRoll:RollCommand(true, false,false, bonus)
+                    GuildRoll:RollCommand(true, bonus)
                 end
             end,
             OnShow = function(self)
@@ -111,7 +115,7 @@ local function ExecuteCommand(command)
                 if bonus == nil then
                     print("Invalid number entered. Please enter a number between 0 and 15.")
                 else
-                    GuildRoll:RollCommand(true, false,false, bonus)
+                    GuildRoll:RollCommand(true, bonus)
                 end
                 self:GetParent():Hide()
             end,
@@ -311,8 +315,11 @@ eventFrame:SetScript("OnEvent", function(self, event)
         CreateButtons()
     elseif event == "GUILD_ROSTER_UPDATE" then
         -- Update rank info when guild roster changes
+        local previousCSRAllowed = isCSRAllowed
         UpdateRankInfo()
-        -- Recreate buttons if CSR eligibility changed
-        CreateButtons()
+        -- Recreate buttons only if CSR eligibility changed
+        if previousCSRAllowed ~= isCSRAllowed then
+            CreateButtons()
+        end
     end
 end)

@@ -11,6 +11,7 @@ local L = AceLibrary("AceLocale-2.2"):new("guildroll")
 GuildRoll.VARS = {
   baseAE = 0,
   AERollCap = 50,
+  CSRWeekBonus = 10,  -- Bonus per week for CSR (weeks 2-15: (weeks-1)*10)
   minPE = 0,
   baseawardpoints = 10,
   decay = 0.5,
@@ -99,7 +100,7 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       name = "Roll MainSpec",
       desc = "Roll MainSpec with your standing",
       func = function() 
-        GuildRoll:RollCommand(false,false,false,0)
+        GuildRoll:RollCommand(false, 0)
       end,
       order = 8,
     },
@@ -108,7 +109,7 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       name = "Roll SR",
       desc = "Roll Soft Reserve with your standing",
       func = function() 
-        GuildRoll:RollCommand(true,false,false,0)
+        GuildRoll:RollCommand(true, 0)
       end,
       order = 9,
     },
@@ -126,7 +127,7 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       end,
       set = function(input) 
       local bonus = GuildRoll:calculateBonus(input)
-      GuildRoll:RollCommand(true, false,false, bonus)
+      GuildRoll:RollCommand(true, bonus)
       end,
       order = 10,
     },
@@ -174,7 +175,7 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       name = "Roll MainSpec",
       desc = "Roll with your standing",
       func = function() 
-        GuildRoll:RollCommand(false,false,false,0)
+        GuildRoll:RollCommand(false, 0)
       end,
       order = 5,
     },
@@ -183,7 +184,7 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       name = "Roll SR",
       desc = "Roll Soft Reserve with your standing",
       func = function() 
-        GuildRoll:RollCommand(true,false,false,0)
+        GuildRoll:RollCommand(true, 0)
       end,
       order = 7,
     },
@@ -201,7 +202,7 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       end,
       set = function(input) 
       local bonus = GuildRoll:calculateBonus(input)
-      GuildRoll:RollCommand(true, false,false, bonus)
+      GuildRoll:RollCommand(true, bonus)
       end,
       order = 8,
     },
@@ -578,7 +579,7 @@ function GuildRoll:delayedInit()
       return 0
     end
     -- number is between 2 and 15
-    return (number - 1) * 10
+    return (number - 1) * GuildRoll.VARS.CSRWeekBonus
   end
   
   self:RegisterChatCommand({"/retcsr"}, function(input)
@@ -587,7 +588,7 @@ function GuildRoll:delayedInit()
       self:defaultPrint("Invalid CSR input. Please enter a number between 0 and 15.")
       return
     end
-    self:RollCommand(true, false,false, bonus)
+    self:RollCommand(true, bonus)
   end)
   --self:RegisterEvent("CHAT_MSG_ADDON","addonComms")  
   -- broadcast our version
@@ -1629,7 +1630,7 @@ function GuildRoll:GetBaseRollValue(ep,gp)
 
 end
 
-function GuildRoll:RollCommand(isSRRoll,isDSRRoll,isOS,bonus)
+function GuildRoll:RollCommand(isSRRoll, bonus)
   local playerName = UnitName("player")
   local ep = 0 
   local gp = 0
@@ -1691,7 +1692,7 @@ function GuildRoll:RollCommand(isSRRoll,isDSRRoll,isOS,bonus)
   end
 
   if bonus > 0 then
-    local weeks = math.floor(bonus / 10) + 1
+    local weeks = math.floor(bonus / GuildRoll.VARS.CSRWeekBonus) + 1
     bonusText = string.format(" +%d for %d weeks", bonus, weeks)..bonusText
     message = string.format("I rolled Cumulative SR %d - %d with %d "..L["MainStanding"].." +%d(%d"..L["AuxStanding"]..")%s", minRoll, maxRoll, ep ,cappedGP, gp, bonusText)
   end
