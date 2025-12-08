@@ -1095,6 +1095,59 @@ function RetRoll:givename_ep(getname,ep,block) -- awards ep to a single characte
   return isPug, getname
 end
 
+-- awardEP(memberName, amount)
+-- Unified function to award EP (EffortPoints) to a member
+-- Uses GetEPForMember/SetEPForMember helpers
+-- Handles alts and pugs with percentage
+-- @param memberName - The name of the guild member
+-- @param amount - The amount of EP to award (can be negative for penalties)
+-- @return isPug, actualName (the name that received the EP)
+function RetRoll:awardEP(memberName, amount, block)
+  if not (admin()) then return end
+  local isPug, playerNameInGuild = self:isPug(memberName)
+  local postfix, alt = ""
+  
+  if isPug then
+    -- Update EP for the level 1 character in the guild (pug bank)
+    alt = memberName
+    memberName = playerNameInGuild
+    amount = self:num_round(RetRoll_altpercent * amount)
+    postfix = string.format(", %s\'s Pug EP Bank.", alt)
+  elseif (RetRollAltspool) then
+    local main = self:parseAlt(memberName)
+    if (main) then
+      alt = memberName
+      memberName = main
+      amount = self:num_round(RetRoll_altpercent * amount)
+      postfix = string.format(L[", %s\'s Main."], alt)
+    end
+  end
+  
+  if block and RetRoll:TFind(block, memberName) then
+    self:debugPrint(string.format("Skipping %s, already awarded.", memberName))
+    return isPug, memberName
+  end
+  
+  -- Use the helper functions
+  local old = self:GetEPForMember(memberName)
+  local newEP = amount + old
+  self:SetEPForMember(memberName, newEP)
+  
+  self:debugPrint(string.format(L["Giving %d EffortPoints to %s%s. (Previous: %d, New: %d)"], 
+    amount, memberName, postfix, old, newEP))
+  
+  if amount < 0 then -- inform admins and victim of penalties
+    local msg = string.format(L["%s EffortPoints Penalty to %s%s. (Previous: %d, New: %d)"], 
+      amount, memberName, postfix, old, newEP)
+    self:adminSay(msg)
+    self:addToLog(msg)
+    local addonMsg = string.format("%s;%s;%s", memberName, "EffortPoints", amount)
+    self:addonMessage(addonMsg, "GUILD")
+  end
+  
+  return isPug, memberName
+end
+
 
 function RetRoll:givename_gp(getname,gp) 
  return RetRoll:givename_gp(getname,gp,nil) 
