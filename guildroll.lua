@@ -2095,22 +2095,7 @@ end
 
 
 function GuildRoll:sendPugEpUpdatePacket(packet)
-	
-	
-
-	local updateline = string.format("%s{", GuildRoll:GetGuildName())
-	for i, ep in ipairs(packet) do
-		updateline = updateline .. ep
-		if (i<table.getn(packet)) then 
-			updateline = updateline .. ","
-		end
-		
-		
-	end
-	
-		updateline = updateline .. "}"
-	GuildRollMSG:DBGMSG("Sending a packet")
-	GuildRoll:SendMessage(GuildRollMSG.PugStandingUpdate,updateline,"BULK")
+  -- NO-OP: PUG support has been disabled
 end
 
 function GuildRoll:parsePugEpUpdatePacket(message)
