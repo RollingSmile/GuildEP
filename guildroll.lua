@@ -271,27 +271,6 @@ function GuildRoll:buildMenu()
         return n and n >= 0 and n < GuildRoll.VARS.max
       end
     }
-    options.args["AuxStanding"] = {
-      type = "group",
-      name = L["+AuxStanding to Member"],
-      desc = L["Account AuxStanding for member."],
-      order = 30,
-      hidden = function() return not (admin()) end,
-    }
-	options.args["AuxStanding_raid"] = {
-      type = "text",
-      name = L["+AuxStanding to Raid"],
-      desc = L["Award AuxStanding to all raid members."],
-      order = 35,
-      get = "suggestedAwardAuxStanding",
-      set = function(v) GuildRoll:award_raid_gp(tonumber(v)) end,
-      usage = "<GP>",
-      hidden = function() return not (admin()) end,
-      validate = function(v)
-        local n = tonumber(v)
-        return n and n >= 0 and n < GuildRoll.VARS.max
-      end
-    }
  
     options.args["alts"] = {
       type = "toggle",
@@ -434,7 +413,6 @@ function GuildRoll:buildMenu()
     local members = GuildRoll:buildRosterTable()
     self:debugPrint(string.format(L["Scanning %d members for Standing data. (%s)"],table.getn(members),(GuildRoll_raidonly and "Raid" or "Full")))
     options.args["MainStanding"].args = GuildRoll:buildClassMemberTable(members,"MainStanding")
-    options.args["AuxStanding"].args = GuildRoll:buildClassMemberTable(members,"AuxStanding")
     if (needInit) then needInit = false end
     if (needRefresh) then needRefresh = false end
   end
@@ -985,6 +963,7 @@ function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
 end
 function GuildRoll:award_raid_gp(gp) -- awards gp to raid members in zone
+  if not (IsGuildLeader()) then return end
   if GetNumRaidMembers()>0 then
 	local award = {}
     for i = 1, GetNumRaidMembers(true) do
@@ -1060,7 +1039,7 @@ return nil
 end
 
 function GuildRoll:givename_gp(getname,gp,block) -- awards gp to a single character
-  if not (admin()) then return end
+  if not (IsGuildLeader()) then return end
   local isPug, playerNameInGuild = self:isPug(getname)
   local postfix, alt = ""
   if isPug then
