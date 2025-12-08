@@ -415,7 +415,7 @@ function GuildRoll_standings:OnTooltipUpdate()
   end
 end
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_reservechannel,GuildRoll_main,GuildRoll_progress,RetR[...]
--- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRoll_reserves,GuildRollAlts,GuildRoll_logs
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,RetR[...]
+-- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs
 
 -- FILE CONTENT END --
