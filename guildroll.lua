@@ -1920,11 +1920,11 @@ function GuildRoll:RollCommand(isSRRoll,isDSRRoll,isOS,bonus)
 end
 function GuildRoll:isPug(name)
   -- NO-OP: PUG support has been disabled
-  return false
+  return false, nil
 end
 function GuildRoll:isBank(name)
   -- NO-OP: PUG support has been disabled
-  return false
+  return false, nil
 end
 
 function GuildRoll:CheckPugStanding()
