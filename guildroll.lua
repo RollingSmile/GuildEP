@@ -1036,8 +1036,8 @@ function RetRoll:award_raid_ep(ep) -- awards ep to raid members in zone
 		 table.insert (award, mName)
       end
     end
-    self:simpleSay(string.format(L["Giving %d MainStanding to all raidmembers"],ep))
-    self:addToLog(string.format(L["Giving %d MainStanding to all raidmembers"],ep))    
+    self:simpleSay(self:sf(L["Giving %d MainStanding to all raidmembers"], ep))
+    self:addToLog(self:sf(L["Giving %d MainStanding to all raidmembers"], ep))    
     local addonMsg = string.format("RAID;AWARD;%s",ep)
     self:addonMessage(addonMsg,"RAID")
     self:refreshPRTablets() 
@@ -1053,8 +1053,8 @@ function RetRoll:award_raid_gp(gp) -- awards gp to raid members in zone
 		 table.insert (award, mName)
       end
     end
-    self:simpleSay(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))
-    self:addToLog(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))    
+    self:simpleSay(self:sf(L["Giving %d AuxStanding to all raidmembers"], gp))
+    self:addToLog(self:sf(L["Giving %d AuxStanding to all raidmembers"], gp))    
     local addonMsg = string.format("RAID;AWARDGP;%s",gp)
     self:addonMessage(addonMsg,"RAID")
     self:refreshPRTablets() 
@@ -1069,8 +1069,8 @@ function RetRoll:award_reserve_ep(ep) -- awards ep to reserve list
 		local _,mName =  self:givename_ep(name,ep,award)
 		 table.insert (award, mName)
     end
-    self:simpleSay(string.format(L["Giving %d MainStanding to active reserves"],ep))
-    self:addToLog(string.format(L["Giving %d MainStanding to active reserves"],ep))
+    self:simpleSay(self:sf(L["Giving %d MainStanding to active reserves"], ep))
+    self:addToLog(self:sf(L["Giving %d MainStanding to active reserves"], ep))
     local addonMsg = string.format("RESERVES;AWARD;%s",ep)
     self:addonMessage(addonMsg,"GUILD")
     RetRoll.reserves = {}
@@ -1185,7 +1185,7 @@ function RetRoll:decay_epgp_v3()
       self:update_epgp_v3(ep,gp,i,name,officernote)
     end
   end
-  local msg = string.format(L["All Standing decayed by %s%%"],(1-RetRoll_decay)*100)
+  local msg = self:sf(L["All Standing decayed by %s%%"], (1-RetRoll_decay)*100)
   self:simpleSay(msg)
   if not (RetRoll_saychannel=="OFFICER") then self:adminSay(msg) end
   local addonMsg = string.format("ALL;DECAY;%s",(1-(RetRoll_decay or RetRoll.VARS.decay))*100)
@@ -1205,9 +1205,9 @@ function RetRoll:gp_reset_v3()
       end
     end
     local msg = L["All Standing has been reset to 0/%d."]
-    self:debugPrint(string.format(msg,RetRoll.VARS.baseAE))
-    self:adminSay(string.format(msg,RetRoll.VARS.baseAE))
-    self:addToLog(string.format(msg,RetRoll.VARS.baseAE))
+    self:debugPrint(self:sf(msg, RetRoll.VARS.baseAE))
+    self:adminSay(self:sf(msg, RetRoll.VARS.baseAE))
+    self:addToLog(self:sf(msg, RetRoll.VARS.baseAE))
   end
 end
 
@@ -1221,9 +1221,9 @@ function RetRoll:ClearGP_v3()
       end
     end
     local msg = L["All AuxStanding has been reset to %d."]
-    self:debugPrint(string.format(msg,RetRoll.VARS.baseAE))
-    self:adminSay(string.format(msg,RetRoll.VARS.baseAE))
-    self:addToLog(string.format(msg,RetRoll.VARS.baseAE))
+    self:debugPrint(self:sf(msg, RetRoll.VARS.baseAE))
+    self:adminSay(self:sf(msg, RetRoll.VARS.baseAE))
+    self:addToLog(self:sf(msg, RetRoll.VARS.baseAE))
   end
 end
 
