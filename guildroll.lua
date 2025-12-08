@@ -878,8 +878,8 @@ end
 function GuildRoll:init_notes_v3(guild_index,name,officernote)
   local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
   
-  -- Check if we have new format {EP} (EP exists but GP is nil)
-  local has_new_format = (ep ~= nil and gp == nil and string.find(officernote,"{%d+}"))
+  -- Check if we have new format {EP} (EP exists but GP is nil, and pattern matches {digits} not {digits:digits})
+  local has_new_format = (ep ~= nil and gp == nil and string.find(officernote,"{%d+}") and not string.find(officernote,"{%d+:%d+}"))
   
   if (ep == nil) then
     -- No EP at all - initialize with old format for backward compatibility
@@ -1612,7 +1612,8 @@ admin = function()
 end
 
 sanitizeNote = function(prefix,epgp,postfix)
-  -- reserve 12 chars for the epgp pattern {xxxxx:yyyy} max public/officernote = 31
+  -- reserve 12 chars for the epgp pattern: {xxxxx:yyyy} for old format or {xxxxxxx} for new format
+  -- max public/officernote = 31 chars
   local remainder = string.format("%s%s",prefix,postfix)
   local clip = math.min(31-12,string.len(remainder))
   local prepend = string.sub(remainder,1,clip)

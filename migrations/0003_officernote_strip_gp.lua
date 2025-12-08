@@ -14,6 +14,7 @@ function GuildRoll:migration_0003_preview()
     local name, _, _, _, _, _, _, officernote, _, _ = GetGuildRosterInfo(i)
     if officernote then
       -- Match the {EP:GP} pattern (allowing negative numbers)
+      -- This handles both main format {EP:GP} and alt format {MainName}{EP:GP}
       local prefix, ep, gp, postfix = string.match(officernote, "^(.-){(%-?%d+):(%-?%d+)}(.*)$")
       if ep and gp then
         local newNote = prefix .. "{" .. ep .. "}" .. postfix
@@ -137,7 +138,8 @@ function GuildRoll:migration_0003_handler(args)
       self:defaultPrint(string.format(L["Migration Preview: %d officer notes would be changed:"], count))
       for i, change in ipairs(changes) do
         if i <= 10 then -- Show first 10 examples
-          self:defaultPrint(string.format("  %s: {%s:%s} -> {%s}", change.name, change.ep, change.gp, change.ep))
+          -- Show full note transformation to include {MainName} prefix if present
+          self:defaultPrint(string.format("  %s: '%s' -> '%s'", change.name, change.oldNote, change.newNote))
         end
       end
       if count > 10 then
