@@ -270,11 +270,12 @@ function RetRoll:sf(fmt, ...)
   end
   
   -- Normalize numeric format specifiers to %s to avoid type errors with nil
-  fmt = string.gsub(fmt, "%%[dif]", "%%s")
+  -- Matches format specifiers like %d, %5d, %-10.2f, etc.
+  fmt = string.gsub(fmt, "%%%-?%d*%.?%d*[dif]", "%%s")
   
   -- Convert all arguments, replacing nil with "" and applying tostring
   local args = {...}
-  for i = 1, table.getn(args) do
+  for i = 1, #args do
     if args[i] == nil then
       args[i] = ""
     else
