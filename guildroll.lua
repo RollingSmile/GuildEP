@@ -637,8 +637,16 @@ function GuildRoll:GuildRosterSetOfficerNote(index,note,fromAddon)
     self.hooks["GuildRosterSetOfficerNote"](index,note)
   else
     local name, _, _, _, _, _, _, prevnote, _, _ = GetGuildRosterInfo(index)
+    -- Check for both old format {EP:GP} and new format {EP}
     local _,_,_,oldepgp,_ = string.find(prevnote or "","(.*)({%d+:%d+})(.*)")
+    if not oldepgp then
+      _,_,_,oldepgp,_ = string.find(prevnote or "","(.*)({%d+})(.*)")
+    end
     local _,_,_,epgp,_ = string.find(note or "","(.*)({%d+:%d+})(.*)")
+    if not epgp then
+      _,_,_,epgp,_ = string.find(note or "","(.*)({%d+})(.*)")
+    end
+    
     if (GuildRollAltspool) then
       local oldmain = self:parseAlt(name,prevnote)
       local main = self:parseAlt(name,note)
@@ -663,7 +671,13 @@ function GuildRoll:GuildRosterSetOfficerNote(index,note,fromAddon)
         self:defaultPrint(string.format(L["|cffff0000Manually modified %s\'s note. Standing was %s|r"],name,oldepgp))
       end
     end
-    local safenote = string.gsub(note,"(.*)({%d+:%d+})(.*)",sanitizeNote)
+    -- Sanitize based on which format is present
+    local safenote
+    if string.find(note,"({%d+:%d+})") then
+      safenote = string.gsub(note,"(.*)({%d+:%d+})(.*)",sanitizeNote)
+    else
+      safenote = string.gsub(note,"(.*)({%d+})(.*)",sanitizeNote)
+    end
     return self.hooks["GuildRosterSetOfficerNote"](index,safenote)    
   end
 end
@@ -863,14 +877,24 @@ end
 
 function GuildRoll:init_notes_v3(guild_index,name,officernote)
   local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-  if  (ep ==nil or gp==nil) then
+  
+  -- Check if we have new format {EP} (EP exists but GP is nil)
+  local has_new_format = (ep ~= nil and gp == nil and string.find(officernote,"{%d+}"))
+  
+  if (ep == nil) then
+    -- No EP at all - initialize with old format for backward compatibility
     local initstring = string.format("{%d:%d}",0,GuildRoll.VARS.baseAE)
     local newnote = string.format("%s%s",officernote,initstring)
     newnote = string.gsub(newnote,"(.*)({%d+:%d+})(.*)",sanitizeNote)
     officernote = newnote
+  elseif has_new_format then
+    -- New format {EP} - sanitize with new pattern
+    officernote = string.gsub(officernote,"(.*)({%d+})(.*)",sanitizeNote)
   else
+    -- Old format {EP:GP} - sanitize with old pattern
     officernote = string.gsub(officernote,"(.*)({%d+:%d+})(.*)",sanitizeNote)
   end
+  
   GuildRosterSetOfficerNote(guild_index,officernote,true)
   return officernote
 end
@@ -878,26 +902,42 @@ end
 function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_action)
   officernote = self:init_notes_v3(guild_index,name,officernote)
   local newnote
+  
+  -- Check if we have old format {EP:GP} or new format {EP}
+  local has_old_format = string.find(officernote,"{%d+:%-?%d+}")
+  
   if ( ep ~= nil) then 
    -- ep = math.max(0,ep)
-    newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
-      return string.format("%s%s%s%s%s",head,ep,divider,oldgp,tail)
+    if has_old_format then
+      -- Old format: update EP in {EP:GP}
+      newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
+        return string.format("%s%s%s%s%s",head,ep,divider,oldgp,tail)
       end)
-  end
-  if (gp~= nil) then 
-   -- gp =  math.max(GuildRoll.VARS.baseAE,gp)
-    if (newnote) then
-     
-      newnote = string.gsub(newnote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
-        return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
-        end)
-    else 
-      newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail)
-      
-        return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
-        end)
+    else
+      -- New format: update EP in {EP}
+      newnote = string.gsub(officernote,"(.*{)(%-?%d+)(}.*)",function(head,oldep,tail) 
+        return string.format("%s%s%s",head,ep,tail)
+      end)
     end
   end
+  
+  if (gp~= nil) then 
+   -- gp =  math.max(GuildRoll.VARS.baseAE,gp)
+    if has_old_format then
+      if (newnote) then
+        -- Old format: update GP in {EP:GP}
+        newnote = string.gsub(newnote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
+          return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
+        end)
+      else 
+        newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail)
+          return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
+        end)
+      end
+    end
+    -- Note: New format {EP} doesn't store GP, so we ignore GP updates for new format
+  end
+  
   if (newnote) then 
     GuildRosterSetOfficerNote(guild_index,newnote,true)
   end
@@ -927,26 +967,52 @@ end
 
 function GuildRoll:get_ep_v3(getname,officernote) -- gets ep by name or note
   if (officernote) then
+    -- Try old format {EP:GP} first
     local _,_,ep = string.find(officernote,".*{(%d+):%-?%d+}.*")
+    if ep then
+      return tonumber(ep)
+    end
+    -- Try new format {EP} (after migration)
+    local _,_,ep = string.find(officernote,".*{(%d+)}.*")
     return tonumber(ep)
   end
   for i = 1, GetNumGuildMembers(1) do
     local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    local _,_,ep = string.find(officernote,".*{(%d+):%-?%d+}.*")
-    if (name==getname) then return tonumber(ep) end
+    if (name==getname) then
+      -- Try old format {EP:GP} first
+      local _,_,ep = string.find(officernote,".*{(%d+):%-?%d+}.*")
+      if ep then
+        return tonumber(ep)
+      end
+      -- Try new format {EP}
+      local _,_,ep = string.find(officernote,".*{(%d+)}.*")
+      return tonumber(ep)
+    end
   end
   return
 end
 
 function GuildRoll:get_gp_v3(getname,officernote) -- gets gp by name or officernote
   if (officernote) then
+    -- Try old format {EP:GP} first
     local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
-    return tonumber(gp)
+    if gp then
+      return tonumber(gp)
+    end
+    -- New format {EP} - return nil to indicate no GP value
+    return nil
   end
   for i = 1, GetNumGuildMembers(1) do
     local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
-    if (name==getname) then return tonumber(gp) end
+    if (name==getname) then
+      -- Try old format {EP:GP} first
+      local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
+      if gp then
+        return tonumber(gp)
+      end
+      -- New format {EP} - return nil
+      return nil
+    end
   end
   return
 end
