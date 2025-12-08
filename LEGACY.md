@@ -86,6 +86,8 @@ Large commented block for zone-based award point calculations in `suggestedAward
 
 **Context:** This code calculated award points based on the raid zone tier. The function now simply returns `GuildRoll.VARS.baseawardpoints`.
 
+**Note:** The referenced tables (`raidZones` and `zone_multipliers`) are still active in the codebase and would be needed if this code were to be re-enabled.
+
 ---
 
 ## 5. Zone-based Award Multipliers (Duplicate) (guildroll.lua, lines 1454-1478)

@@ -121,8 +121,8 @@ After this PR is merged, the following cleanup steps are recommended for future 
 **Action:** Convert commented pfUI code to conditional loading:
 ```lua
 if IsAddOnLoaded("pfUI") and not IsAddOnLoaded("pfUI-addonskins") then
-  if pfUI and pfUI.api and pfUI.api.CreateBackdrop then
-    -- Apply pfUI styling conditionally
+  if pfUI and pfUI.api and pfUI.api.CreateBackdrop and pfUI_config and pfUI_config.tooltip and pfUI_config.tooltip.alpha then
+    pfUI.api.CreateBackdrop(GuildRoll.extratip, nil, nil, tonumber(pfUI_config.tooltip.alpha))
   end
 end
 ```
@@ -154,7 +154,7 @@ end
 **Testing:** Not required
 
 ### 4. Consider Zone Multiplier Removal (Future)
-**Files:** guildroll.lua, lines 1419-1478  
+**Files:** guildroll.lua, lines 1419-1443 and 1454-1478  
 **Action:** If zone multipliers are permanently disabled, fully remove the commented blocks  
 **Risk:** Medium - requires confirmation that feature won't be re-enabled  
 **Testing:** Extended in-game testing of award point calculations  
