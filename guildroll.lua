@@ -1688,7 +1688,11 @@ function GuildRoll:RollCommand(isSRRoll, bonus)
   RandomRoll(minRoll, maxRoll)
   
   -- Prepare the announcement message
-  local bonusText = " as "..desc.." of "..hostG
+  local bonusText = ""
+  if desc ~= "Main" then
+    -- Only append for alts
+    bonusText = " as "..desc
+  end
   local message = string.format("I rolled MS \"%d - %d\" with %d "..L["MainStanding"].."%s", minRoll, maxRoll, ep, bonusText)
   
   if(isSRRoll) then
