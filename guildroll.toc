@@ -7,6 +7,7 @@
 ## Version: 1.0
 ## X-Alpha: Test
 ## OptionalDeps: Ace2
+## Notes: EP rolls - Basic Effort Points manager for TurtleWoW
 ## SavedVariables: GuildRoll_saychannel, GuildRoll_groupbyclass, GuildRoll_groupbyarmor, GuildRoll_groupbyrole, GuildRoll_raidonly, GuildRoll_dbver, GuildRoll_debug, GuildRoll_fubar
 ## SavedVariablesPerCharacter: GuildRoll_main, GuildRoll_log, GuildRoll_looted, GuildRoll_decay, GuildRoll_minPE, GuildRoll_progress, GuildRoll_discount, GuildRollAltspool, GuildRoll_altpercent, GuildRoll_pugStanding,GuildRoll_showRollWindow
 
