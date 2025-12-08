@@ -1688,7 +1688,7 @@ function GuildRoll:RollCommand(isSRRoll, bonus)
   
   -- Prepare the announcement message
   local bonusText = ""
-  if desc ~= "Main" then
+  if string.find(desc, "^Alt of ") then
     -- Only append for alts
     bonusText = " as "..desc
   end
