@@ -1606,7 +1606,6 @@ function GuildRoll:RollCommand(isSRRoll, bonus)
   local ep = 0 
   local gp = 0
   local desc = ""  
-  -- NoPugs: Removed IsPugInHostedRaid branch
   -- Check if the player is an alt
   if GuildRollAltspool then
     local main = self:parseAlt(playerName)
@@ -1677,34 +1676,7 @@ function GuildRoll:RollCommand(isSRRoll, bonus)
   -- Send the message
   SendChatMessage(message, chatType)
 end
-function GuildRoll:isPug(name)
-  -- NoPugs: This function has been disabled
-  return false
-end
-function GuildRoll:isBank(name)
-  -- NoPugs: This function has been disabled
-  return false
-end
 
-function GuildRoll:CheckPugStanding()
-  -- NoPugs: This function has been disabled
-  self:defaultPrint("PUG standing feature has been disabled.")
-  return nil
-end
-function GuildRoll:getAllPugs()
-  -- NoPugs: This function has been disabled
-  return {}
-end
-function GuildRoll:updateAllPugStanding( force )
-  -- NoPugs: This function has been disabled
-  return
-end
-
-
-function GuildRoll:getPugName(name)
-  -- NoPugs: This function has been disabled
-  return nil
-end 
 local RaidKey = {[L["Molten Core"]]="MC",[L["Onyxia\'s Lair"]]="ONY",[L["Blackwing Lair"]]="BWL",[L["Ahn\'Qiraj"]]="AQ40",[L["Naxxramas"]]="NAX",["Tower of Karazhan"]="K10",["Upper Tower of Karazhan"]="K40",["???"]="K40"}
 function GuildRoll:GetReward()
 
@@ -1771,30 +1743,11 @@ function GuildRoll:GetReward()
     return isMainStanding , reward
   end
 
-
-
-
-
-
-   
-
-
-end
-
-function GuildRoll:UpdateHostInfo()
-  -- NoPugs: This function has been disabled
-  return
 end
 
 function GuildRoll:GetGuildName()
 	local guildName, _, _ = GetGuildInfo("player")
 	return guildName
-end
-
-
-function IsPugInHostedRaid()
-  -- NoPugs: This function has been disabled
-  return false
 end
  
 function GuildRoll:GetRaidLeader()
@@ -1833,46 +1786,9 @@ end
 local lastHostInfoDispatch = 0
 local HostInfoRequestsSinceLastDispatch = 0
 
-function GuildRoll:SendHostInfoUpdate( member , epgp)
-  -- NoPugs: This function has been disabled
-  return
-end
-
-
 function GuildRoll:Status()
 DEFAULT_CHAT_FRAME:AddMessage("Host LeadName " .. GuildRoll.VARS.HostLeadName )
 DEFAULT_CHAT_FRAME:AddMessage("Host GuildName " .. GuildRoll.VARS.HostGuildName ) 
-end
-
-function GuildRoll:ParseHostInfo(  sender , text )
-  -- NoPugs: This function has been disabled
-  return
-end
-function GuildRoll:RequestHostInfo() 
-  -- NoPugs: This function has been disabled
-  return
-end 
-
-
-function GuildRoll:sendPugEpUpdatePacket(packet)
-  -- NoPugs: This function has been disabled
-  return
-end
-
-function GuildRoll:parsePugEpUpdatePacket(message)
-  -- NoPugs: This function has been disabled
-  return
-end
-
-
-function GuildRoll:ReportIfPugs()
-  -- NoPugs: This function has been disabled
-  return
-end
-
-function GuildRoll:ReportPugManualEdit(pug , epgp)
-  -- NoPugs: This function has been disabled
-  return
 end
 
 function GuildRoll:SendMessage(subject, msg , prio)
@@ -1898,7 +1814,6 @@ function GuildRollMSG:DBGMSG(msg, red)
 	end
 end
 
-
 function GuildRollMSG:OnCHAT_MSG_ADDON( prefix, text, channel, sender)
 		
 	
@@ -1916,19 +1831,10 @@ function GuildRollMSG:OnCHAT_MSG_ADDON( prefix, text, channel, sender)
 				--GuildRollMSG:DBGMSG("Recieved a message" )  
 				
 				local _ ,raidlead = GuildRoll:GetRaidLeader()
-				-- NoPugs: Removed handling for RequestHostInfoUpdate, HostInfoUpdate, and PugStandingUpdate messages
-				
+							
 			end
 		end
 end
-
-
-
-
-
-
-
-
 
 -- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_looted,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs,GuildRoll_pugCache
