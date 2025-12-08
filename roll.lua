@@ -12,26 +12,17 @@ local function ExecuteCommand(command)
         RandomRoll(1, 99)
     elseif command == "roll 98" then
         RandomRoll(1, 98)
-    elseif command == "ret ms" then
-        -- simple MS (client random 1-100)
-        RandomRoll(1, 100)
-    elseif command == "ret os" then
-        -- simple OS (client random 1-99) -- no OSPenalty applied
-        RandomRoll(1, 99)
-    elseif command == "ret tmog" then
-        -- transmog roll simple 1-98
-        RandomRoll(1, 98)
-    elseif command == "ret epms" then
+    elseif command == "roll ep" then
         -- EP-aware MainSpec roll (1+EP .. 100+EP)
         if GuildRoll and GuildRoll.RollCommand then
             GuildRoll:RollCommand(false, false, false, 0)
         end
-    elseif command == "ret sr" then
+    elseif command == "roll sr" then
         -- EP-aware SR roll (100+EP .. 200+EP)
         if GuildRoll and GuildRoll.RollCommand then
             GuildRoll:RollCommand(true, false, false, 0)
         end
-    elseif command == "ret csr" then
+    elseif command == "roll csr" then
         -- Use static popup dialog to input CSR weeks (0..15) and validate
         StaticPopupDialogs["RET_CSR_INPUT"] = {
             text = "Enter number of weeks you SR this item (0..15):",
@@ -89,11 +80,11 @@ local function ExecuteCommand(command)
             hideOnEscape = 1,
         }
         StaticPopup_Show("RET_CSR_INPUT")
-    elseif command == "ret show" then
+    elseif command == "show ep" then
         if GuildRoll_standings and GuildRoll_standings.Toggle then
             GuildRoll_standings:Toggle()
         end
-    elseif command == "noice" then
+    end
 end
 
 -- Create a frame for the Roll button
@@ -132,7 +123,6 @@ rollButton:SetWidth(96)
 rollButton:SetHeight(30)
 rollButton:SetText("Roll")
 rollButton:SetPoint("CENTER", rollFrame, "CENTER")
--- Ensure the button receives mouse events and sits above parent
 rollButton:EnableMouse(true)
 rollButton:SetFrameLevel((rollFrame:GetFrameLevel() or 0) + 5)
 
@@ -140,7 +130,7 @@ rollButton:SetFrameLevel((rollFrame:GetFrameLevel() or 0) + 5)
 local rollOptionsFrame = CreateFrame("Frame", "RollOptionsFrame", rollFrame)
 rollOptionsFrame:SetPoint("TOP", rollButton, "BOTTOM", 0, -2)
 rollOptionsFrame:SetWidth(140)
-rollOptionsFrame:SetHeight(160)
+rollOptionsFrame:SetHeight(140)
 rollOptionsFrame:Hide()
 rollOptionsFrame:SetFrameLevel(rollButton:GetFrameLevel() - 1)
 
@@ -177,10 +167,8 @@ end
 -- Helper: get player's rankIndex and the rankIndex of the "Core Raider" rank (if found)
 local DEFAULT_REQUIRED_RANK_INDEX = 3 -- fallback if "Core Raider" rank not found; adjust if your guild uses different ordering (0 = Guild Master)
 
--- Safe function to get rank indices; returns (playerRankIndex, requiredRankIndex) or (nil, nil) if not possible
 local function SafeGetPlayerAndRequiredRankIndices()
     if not IsInGuild() then return nil, nil end
-    -- avoid calling GuildRoster in combat; pcall to avoid throwing errors
     if GuildRoster then
         pcall(GuildRoster)
     end
@@ -189,7 +177,6 @@ local function SafeGetPlayerAndRequiredRankIndices()
     local playerName = UnitName("player")
     local playerRankIndex, requiredRankIndex
     for i = 1, num do
-        -- Use pcall to be safe around API quirks
         local ok, name, rankName, rankIndex = pcall(function() return GetGuildRosterInfo(i) end)
         if ok and name then
             local simpleName = string.match(name, "^[^-]+") or name
@@ -208,7 +195,6 @@ local function SafeGetPlayerAndRequiredRankIndices()
     return playerRankIndex, requiredRankIndex
 end
 
--- Determine if current player may see CSR button: Core Raider (by rank index) or higher
 local function CanSeeCSR()
     if not IsInGuild() then return false end
     local playerRankIndex, requiredRankIndex = SafeGetPlayerAndRequiredRankIndices()
@@ -216,28 +202,24 @@ local function CanSeeCSR()
     if not requiredRankIndex then
         requiredRankIndex = DEFAULT_REQUIRED_RANK_INDEX
     end
-    -- rankIndex: lower number = higher rank
     return playerRankIndex <= requiredRankIndex
 end
 
--- Build options list lazily: call CanSeeCSR() only now (not at file-load time)
+-- Build options list lazily: EP-aware options + CSR (if permitted) + numeric legacy rolls + standings
 local options = {
-    { "MS", "ret ms" },           -- simple 1-100
-    { "OS", "ret os" },           -- simple 1-99
-    { "Tmog", "ret tmog" },       -- simple 1-98
-    { "EP(MS)", "ret epms" },     -- EP-aware MS (1+EP .. 100+EP)
-    { "SR", "ret sr" },           -- EP-aware SR (100+EP .. 200+EP)
+    { "EP(MS)", "roll ep" },     -- EP-aware MS (1+EP .. 100+EP)
+    { "SR", "roll sr" },           -- EP-aware SR (100+EP .. 200+EP)
 }
 
--- Add CSR only if allowed by rank (evaluate now)
 if CanSeeCSR() then
-    table.insert(options, { "CSR", "ret csr" })
+    table.insert(options, { "CSR", "roll csr" })
 end
 
--- Add remaining/legacy options
 table.insert(options, { "101", "roll 101" })
 table.insert(options, { "100", "roll 100" })
-table.insert(options, { "Standings", "ret show" })
+table.insert(options, { "99", "roll 99" })
+table.insert(options, { "98", "roll 98" })
+table.insert(options, { "Standings", "show ep" })
 
 -- Create roll buttons dynamically with closer spacing
 local previousButton = rollOptionsFrame
@@ -254,9 +236,6 @@ end
 
 -- Toggle roll buttons on Roll button click
 rollButton:SetScript("OnClick", function()
-    -- debug print to verify click handler is run
-    -- This should always print when clicking the button
-    print("ShootyRollButton clicked; rollOptionsFrame shown? ", rollOptionsFrame:IsShown())
     if rollOptionsFrame:IsShown() then
         rollOptionsFrame:Hide()
     else
@@ -290,21 +269,18 @@ eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
 eventFrame:SetScript("OnEvent", function(self, event, ...)
     -- On login or roster update, if the CSR visibility might change, update the UI button list
-    -- Rebuild options only if roster update happened or on login
     if event == "GUILD_ROSTER_UPDATE" or event == "PLAYER_LOGIN" then
-        -- Recompute CSR visibility
         local csrVisible = CanSeeCSR()
-        -- If CSR became available and it's not in the options, add it and recreate buttons
         local foundCSR = false
         for _, opt in ipairs(options) do
             if opt[1] == "CSR" then foundCSR = true; break end
         end
         if csrVisible and not foundCSR then
-            table.insert(options, #options - 3, { "CSR", "ret csr" }) -- insert before legacy options
-            -- remove and re-create buttons: simple approach - hide old frames and create new list
+            table.insert(options, #options - 4, { "CSR", "roll csr" }) -- insert before numeric legacy options
+            -- remove and re-create children of rollOptionsFrame
             for i = rollOptionsFrame:GetNumChildren(), 1, -1 do
                 local child = select(i, rollOptionsFrame:GetChildren())
-                if child and child ~= nil and child.GetName and child:GetName() then
+                if child then
                     child:Hide()
                     child:SetParent(nil)
                 end
