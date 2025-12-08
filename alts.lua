@@ -3,15 +3,15 @@ local D = AceLibrary("Dewdrop-2.0")
 local C = AceLibrary("Crayon-2.0")
 
 local BC = AceLibrary("Babble-Class-2.2")
-local L = AceLibrary("AceLocale-2.2"):new("retroll")
+local L = AceLibrary("AceLocale-2.2"):new("guildroll")
 
-RetRollAlts = RetRoll:NewModule("RetRollAlts", "AceDB-2.0")
+GuildRollAlts = GuildRoll:NewModule("GuildRollAlts", "AceDB-2.0")
 
-function RetRollAlts:OnEnable()
-  if not T:IsRegistered("RetRollAlts") then
-    T:Register("RetRollAlts",
+function GuildRollAlts:OnEnable()
+  if not T:IsRegistered("GuildRollAlts") then
+    T:Register("GuildRollAlts",
       "children", function()
-        T:SetTitle(L["retroll alts"])
+        T:SetTitle(L["guildroll alts"])
         self:OnTooltipUpdate()
       end,
       "showTitleWhenDetached", true,
@@ -21,34 +21,34 @@ function RetRollAlts:OnEnable()
         D:AddLine(
           "text", L["Refresh"],
           "tooltipText", L["Refresh window"],
-          "func", function() RetRollAlts:Refresh() end
+          "func", function() GuildRollAlts:Refresh() end
         )
       end      
     )
   end
-  if not T:IsAttached("RetRollAlts") then
-    T:Open("RetRollAlts")
+  if not T:IsAttached("GuildRollAlts") then
+    T:Open("GuildRollAlts")
   end
 end
 
-function RetRollAlts:OnDisable()
-  T:Close("RetRollAlts")
+function GuildRollAlts:OnDisable()
+  T:Close("GuildRollAlts")
 end
 
-function RetRollAlts:Refresh()
-  T:Refresh("RetRollAlts")
+function GuildRollAlts:Refresh()
+  T:Refresh("GuildRollAlts")
 end
 
-function RetRollAlts:setHideScript()
+function GuildRollAlts:setHideScript()
   local i = 1
   local tablet = getglobal(string.format("Tablet20DetachedFrame%d",i))
   while (tablet) and i<100 do
-    if tablet.owner ~= nil and tablet.owner == "RetRollAlts" then
-      RetRoll:make_escable(string.format("Tablet20DetachedFrame%d",i),"add")
+    if tablet.owner ~= nil and tablet.owner == "GuildRollAlts" then
+      GuildRoll:make_escable(string.format("Tablet20DetachedFrame%d",i),"add")
       tablet:SetScript("OnHide",nil)
       tablet:SetScript("OnHide",function()
-          if not T:IsAttached("RetRollAlts") then
-            T:Attach("RetRollAlts")
+          if not T:IsAttached("GuildRollAlts") then
+            T:Attach("GuildRollAlts")
             this:SetScript("OnHide",nil)
           end
         end)
@@ -59,38 +59,38 @@ function RetRollAlts:setHideScript()
   end
 end
 
-function RetRollAlts:Top()
-  if T:IsRegistered("RetRollAlts") and (T.registry.RetRollAlts.tooltip) then
-    T.registry.RetRollAlts.tooltip.scroll=0
+function GuildRollAlts:Top()
+  if T:IsRegistered("GuildRollAlts") and (T.registry.GuildRollAlts.tooltip) then
+    T.registry.GuildRollAlts.tooltip.scroll=0
   end  
 end
 
-function RetRollAlts:Toggle(forceShow)
+function GuildRollAlts:Toggle(forceShow)
   self:Top()
-  if T:IsAttached("RetRollAlts") then
-    T:Detach("RetRollAlts") -- show
-    if (T:IsLocked("RetRollAlts")) then
-      T:ToggleLocked("RetRollAlts")
+  if T:IsAttached("GuildRollAlts") then
+    T:Detach("GuildRollAlts") -- show
+    if (T:IsLocked("GuildRollAlts")) then
+      T:ToggleLocked("GuildRollAlts")
     end
     self:setHideScript()
   else
     if (forceShow) then
-      RetRollAlts:Refresh()
+      GuildRollAlts:Refresh()
     else
-      T:Attach("RetRollAlts") -- hide
+      T:Attach("GuildRollAlts") -- hide
     end
   end
 end
 
-function RetRollAlts:OnClickItem(name)
+function GuildRollAlts:OnClickItem(name)
   --ChatFrame_SendTell(name)
 end
 
-function RetRollAlts:BuildAltsTable()
-  return RetRoll.alts
+function GuildRollAlts:BuildAltsTable()
+  return GuildRoll.alts
 end
 
-function RetRollAlts:OnTooltipUpdate()
+function GuildRollAlts:OnTooltipUpdate()
   local cat = T:AddCategory(
       "columns", 2,
       "text",  C:Orange(L["Main"]),   "child_textR",    1, "child_textG",    1, "child_textB",    1, "child_justify",  "LEFT",
@@ -115,5 +115,5 @@ function RetRollAlts:OnTooltipUpdate()
   end
 end
 
--- GLOBALS: RetRoll_saychannel,RetRoll_groupbyclass,RetRoll_groupbyarmor,RetRoll_groupbyrole,RetRoll_raidonly,RetRoll_decay,RetRoll_minPE,RetRoll_reservechannel,RetRoll_main,RetRoll_progress,RetRoll_discount,RetRoll_log,RetRoll_dbver,RetRoll_looted
--- GLOBALS: RetRoll,RetRoll_prices,RetRoll_standings,RetRoll_bids,RetRoll_loot,RetRoll_reserves,RetRollAlts,RetRoll_logs
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_reservechannel,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRoll_log,GuildRoll_dbver,GuildRoll_looted
+-- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRoll_reserves,GuildRollAlts,GuildRoll_logs
