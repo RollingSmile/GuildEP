@@ -311,8 +311,6 @@ function GuildRoll:buildMenu()
         return n and n >= 0 and n < GuildRoll.VARS.max
       end
     }
- 
-    -- options.args["updatePugs"] is disabled (PUG support removed)
     options.args["alts"] = {
       type = "toggle",
       name = L["Enable Alts"],
