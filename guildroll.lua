@@ -1573,7 +1573,7 @@ end
 -------------
 
 StaticPopupDialogs["RET_EP_SET_MAIN"] = {
-  text = L["Set your main to be able to participate in Reserve List Standing Checks."],
+  text = L["Set Main"],
   button1 = TEXT(ACCEPT),
   button2 = TEXT(CANCEL),
   hasEditBox = 1,
