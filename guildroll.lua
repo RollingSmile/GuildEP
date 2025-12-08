@@ -1937,9 +1937,7 @@ function GuildRoll:getAllPugs()
 end
 function GuildRoll:updateAllPugStanding( force )
   -- NO-OP: PUG support has been disabled
-  if admin() then
-    self:defaultPrint("PUG standing updates are no longer available. PUG support has been disabled.")
-  end
+  self:defaultPrint("PUG standing updates are no longer available. PUG support has been disabled.")
 end
 
 
