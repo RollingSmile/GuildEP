@@ -1,6 +1,6 @@
--- Ensure RetRoll_RollPos is initialized with default values
-RetRoll_RollPos = RetRoll_RollPos or { x = 400, y = 300 }
-RetRoll_showRollWindow = true
+-- Ensure GuildRoll_RollPos is initialized with default values
+GuildRoll_RollPos = GuildRoll_RollPos or { x = 400, y = 300 }
+GuildRoll_showRollWindow = true
 
 -- Function to execute commands
 local function ExecuteCommand(command)
@@ -13,16 +13,16 @@ local function ExecuteCommand(command)
     elseif command == "roll 50" then
         RandomRoll(1, 50)
     elseif command == "ret ms" then
-        if RetRoll and RetRoll.RollCommand then
-            RetRoll:RollCommand(false, false,false, 0)
+        if GuildRoll and GuildRoll.RollCommand then
+            GuildRoll:RollCommand(false, false,false, 0)
         end
     elseif command == "ret os" then
-        if RetRoll and RetRoll.RollCommand then
-            RetRoll:RollCommand(false, false,true, 0)
+        if GuildRoll and GuildRoll.RollCommand then
+            GuildRoll:RollCommand(false, false,true, 0)
         end
     elseif command == "ret sr" then
-        if RetRoll and RetRoll.RollCommand then
-            RetRoll:RollCommand(true, false,false, 0)
+        if GuildRoll and GuildRoll.RollCommand then
+            GuildRoll:RollCommand(true, false,false, 0)
         end
     elseif command == "ret csr" then
         -- Use static popup dialog to input bonus
@@ -36,8 +36,8 @@ local function ExecuteCommand(command)
                 local editBox = getglobal(this:GetParent():GetName().."EditBox")
                 local number = tonumber(editBox:GetText())
                 if number then
-                    local bonus = RetRoll:calculateBonus(number)
-                    RetRoll:RollCommand(true, false,false, bonus)
+                    local bonus = GuildRoll:calculateBonus(number)
+                    GuildRoll:RollCommand(true, false,false, bonus)
                 else
                     print("Invalid number entered.")
                 end
@@ -56,8 +56,8 @@ local function ExecuteCommand(command)
                 local editBox = getglobal(this:GetParent():GetName().."EditBox")
                 local number = tonumber(editBox:GetText())
                 if number then
-                    local bonus = RetRoll:calculateBonus(number)
-                    RetRoll:RollCommand(true, false,false, bonus)
+                    local bonus = GuildRoll:calculateBonus(number)
+                    GuildRoll:RollCommand(true, false,false, bonus)
                 else
                     print("Invalid number entered.")
                 end
@@ -73,7 +73,7 @@ local function ExecuteCommand(command)
         }
         StaticPopup_Show("RET_CSR_INPUT")
     elseif command == "ret show" then
-        RetRoll_standings:Toggle()
+        GuildRoll_standings:Toggle()
     elseif command == "noice" then
         local noices ={ {"nice","SAY"},{"noice","SAY"},{"Nice !","YELL"},{"NOICE !","YELL"},{"NOIIICE","YELL"},{"NOYCE !","YELL"},{"niiice","SAY"},{"Errhm, noice","SAY"}}
         local noice = noices[math.random(1,table.getn(noices))]
@@ -86,10 +86,10 @@ end
 local rollFrame = CreateFrame("Frame", "ShootyRollFrame", UIParent)
 rollFrame:SetWidth(80)
 rollFrame:SetHeight(41)
-rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", RetRoll_RollPos.x, RetRoll_RollPos.y)
+rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", GuildRoll_RollPos.x, GuildRoll_RollPos.y)
 
 
-function RetRoll:ResetButton()
+function GuildRoll:ResetButton()
 rollFrame:SetWidth(80)
 rollFrame:SetHeight(41)
 rollFrame:SetMovable(false)
@@ -99,7 +99,7 @@ rollFrame:SetMovable(true)
 end
 
 
-if not RetRoll_showRollWindow then
+if not GuildRoll_showRollWindow then
     rollFrame:Hide()
 end
 rollFrame:SetMovable(true)
@@ -210,8 +210,8 @@ end)
 rollFrame:SetScript("OnMouseUp", function(_, arg1)
     if arg1 == "LeftButton" then
         rollFrame:StopMovingOrSizing()
-        RetRoll_RollPos.x = rollFrame:GetLeft()
-        RetRoll_RollPos.y = rollFrame:GetTop()
+        GuildRoll_RollPos.x = rollFrame:GetLeft()
+        GuildRoll_RollPos.y = rollFrame:GetTop()
     end
 end)
 
@@ -221,21 +221,21 @@ end)
 
 rollFrame:SetScript("OnDragStop", function()
     rollFrame:StopMovingOrSizing()
-    RetRoll_RollPos.x = rollFrame:GetLeft()
-    RetRoll_RollPos.y = rollFrame:GetTop()
+    GuildRoll_RollPos.x = rollFrame:GetLeft()
+    GuildRoll_RollPos.y = rollFrame:GetTop()
 end)
 
 -- Restore saved position on load
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:SetScript("OnEvent", function()
-    if RetRoll_RollPos.x and RetRoll_RollPos.y then
-        rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", RetRoll_RollPos.x, RetRoll_RollPos.y)
+    if GuildRoll_RollPos.x and GuildRoll_RollPos.y then
+        rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", GuildRoll_RollPos.x, GuildRoll_RollPos.y)
     else
-        RetRoll_RollPos = { x = 400, y = 300 }
-        rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", RetRoll_RollPos.x, RetRoll_RollPos.y)
+        GuildRoll_RollPos = { x = 400, y = 300 }
+        rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", GuildRoll_RollPos.x, GuildRoll_RollPos.y)
     end
-    if not RetRoll_showRollWindow then
+    if not GuildRoll_showRollWindow then
         rollFrame:Hide()
     end
 end)
