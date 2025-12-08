@@ -140,6 +140,15 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       end,
       order = 10,
     },
+  -- dsr = {
+  --   type = "execute",
+  --   name = "Roll Double SR",
+  --   desc = "Roll Double Soft Reserve with your standing",
+  --   func = function() 
+  --     GuildRoll:RollCommand(true,true,false,0)
+  --   end,
+  --   order = 11,
+  -- },
     ep = {
       type = "execute",
       name = "Check your pug Standing",
@@ -224,6 +233,15 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       end,
       order = 8,
     },
+  -- dsr = {
+  --   type = "execute",
+  --   name = "Roll Double SR",
+  --   desc = "Roll Double Soft Reserve with your standing",
+  --   func = function() 
+  --     GuildRoll:RollCommand(true,true,false,0)
+  --   end,
+  --   order = 9,
+  -- },
     ep = {
       type = "execute",
       name = "Check your pug Standing",
@@ -242,32 +260,7 @@ GuildRoll.cmdtable = function()
   end
 end
 GuildRoll.reserves = {}
-GuildRoll.alts = {}
-
--- Safe format helper: protects against nil format strings and arguments
-function GuildRoll:sf(fmt, ...)
-  -- Treat nil format as empty string
-  if fmt == nil then
-    fmt = ""
-  end
-  
-  -- Normalize numeric/char format specifiers to %s to avoid type errors with nil
-  -- Matches format specifiers like %d, %-10.2f, %5d, %x, %o, etc.
-  fmt = string.gsub(fmt, "%%[%-#+ 0]*%d*%.?%d*[diouxXeEfFgGaAc]", "%%s")
-  
-  -- Convert all arguments, replacing nil with "" and applying tostring
-  local args = {...}
-  for i = 1, #args do
-    if args[i] == nil then
-      args[i] = ""
-    else
-      args[i] = tostring(args[i])
-    end
-  end
-  
-  return string.format(fmt, unpack(args))
-end
-
+GuildRoll.alts = {} 
 function GuildRoll:buildMenu()
   if not (options) then
     options = {
@@ -466,7 +459,7 @@ function GuildRoll:buildMenu()
   end
   if (needInit) or (needRefresh) then
     local members = GuildRoll:buildRosterTable()
-    self:debugPrint(self:sf(L["Scanning %d members for Standing data. (%s)"], #members, (GuildRoll_raidonly and "Raid" or "Full")))
+    self:debugPrint(string.format(L["Scanning %d members for Standing data. (%s)"],table.getn(members),(GuildRoll_raidonly and "Raid" or "Full")))
     options.args["MainStanding"].args = GuildRoll:buildClassMemberTable(members,"MainStanding")
     options.args["AuxStanding"].args = GuildRoll:buildClassMemberTable(members,"AuxStanding")
     if (needInit) then needInit = false end
@@ -479,12 +472,15 @@ function GuildRoll:OnInitialize() -- ADDON_LOADED (1) unless LoD
   if GuildRoll_saychannel == nil then GuildRoll_saychannel = "GUILD" end
   if GuildRoll_decay == nil then GuildRoll_decay = GuildRoll.VARS.decay end
   if GuildRoll_minPE == nil then GuildRoll_minPE = GuildRoll.VARS.minPE end
+ -- if GuildRoll_progress == nil then GuildRoll_progress = "T1" end
+ -- if GuildRoll_discount == nil then GuildRoll_discount = 0.25 end
   if GuildRollAltspool == nil then GuildRollAltspool = true end
   if GuildRoll_altpercent == nil then GuildRoll_altpercent = 1.0 end
   if GuildRoll_log == nil then GuildRoll_log = {} end
   if GuildRoll_looted == nil then GuildRoll_looted = {} end
   if GuildRoll_debug == nil then GuildRoll_debug = {} end
   if GuildRoll_pugCache == nil then GuildRoll_pugCache = {} end 
+  --if GuildRoll_showRollWindow == nil then GuildRoll_showRollWindow = true end
   self:RegisterDB("GuildRoll_fubar")
   self:RegisterDefaults("char",{})
   --table.insert(GuildRoll_debug,{[date("%b/%d %H:%M:%S")]="OnInitialize"})
@@ -494,8 +490,8 @@ function GuildRoll:OnEnable() -- PLAYER_LOGIN (2)
   --table.insert(GuildRoll_debug,{[date("%b/%d %H:%M:%S")]="OnEnable"})
   GuildRoll._playerLevel = UnitLevel("player")
   --GuildRoll.extratip = (GuildRoll.extratip) or CreateFrame("GameTooltip","guildroll_tooltip",UIParent,"GameTooltipTemplate")
-  GuildRoll._versionString = GetAddOnMetadata("guildroll","Version") or "0"
-  GuildRoll._websiteString = GetAddOnMetadata("guildroll","X-Website") or ""
+  GuildRoll._versionString = GetAddOnMetadata("guildroll","Version")
+  GuildRoll._websiteString = GetAddOnMetadata("guildroll","X-Website")
   
   if (IsInGuild()) then
     if (GetNumGuildMembers()==0) then
@@ -659,7 +655,7 @@ function GuildRoll:delayedInit()
   self:RegisterChatCommand({"/updatepugs"}, function() GuildRoll:updateAllPugStanding(false) end)
   --self:RegisterEvent("CHAT_MSG_ADDON","addonComms")  
   -- broadcast our version
-  local addonMsg = self:sf("GuildRollVERSION;%s;%d", GuildRoll._versionString, major_ver or 0)
+  local addonMsg = string.format("GuildRollVERSION;%s;%d",GuildRoll._versionString,major_ver or 0)
   self:addonMessage(addonMsg,"GUILD")
   if (IsGuildLeader()) then
     self:shareSettings()
@@ -671,7 +667,7 @@ function GuildRoll:delayedInit()
     end
   end
   GuildRollMSG.delayedinit = true
-  self:defaultPrint(self:sf(L["v%s Loaded."], GuildRoll._versionString))
+  self:defaultPrint(string.format(L["v%s Loaded."],GuildRoll._versionString))
 end
 
 
@@ -701,8 +697,8 @@ function GuildRoll:GuildRosterSetOfficerNote(index,note,fromAddon)
 			if isbnk then
 				GuildRoll:ReportPugManualEdit(pugname , epgp )
 			end
-          self:adminSay(self:sf(L["Manually modified %s\'s note. Previous main was %s"], name, oldmain))
-          self:defaultPrint(self:sf(L["|cffff0000Manually modified %s\'s note. Previous main was %s|r"], name, oldmain))
+          self:adminSay(string.format(L["Manually modified %s\'s note. Previous main was %s"],name,oldmain))
+          self:defaultPrint(string.format(L["|cffff0000Manually modified %s\'s note. Previous main was %s|r"],name,oldmain))
         end
       end
     end    
@@ -712,8 +708,8 @@ function GuildRoll:GuildRosterSetOfficerNote(index,note,fromAddon)
 			if isbnk then
 				GuildRoll:ReportPugManualEdit(pugname , epgp )
 			end
-        self:adminSay(self:sf(L["Manually modified %s\'s note. Standing was %s"], name, oldepgp))
-        self:defaultPrint(self:sf(L["|cffff0000Manually modified %s\'s note. Standing was %s|r"], name, oldepgp))
+        self:adminSay(string.format(L["Manually modified %s\'s note. Standing was %s"],name,oldepgp))
+        self:defaultPrint(string.format(L["|cffff0000Manually modified %s\'s note. Standing was %s|r"],name,oldepgp))
       end
     end
     local safenote = string.gsub(note,"(.*)({%d+:%d+})(.*)",sanitizeNote)
@@ -736,7 +732,7 @@ end
 
 function GuildRoll:debugPrint(msg)
   if (shooty_debugchat) then
-    shooty_debugchat:AddMessage(self:sf(out, msg))
+    shooty_debugchat:AddMessage(string.format(out,msg))
     self:flashFrame(shooty_debugchat)
   else
     self:defaultPrint(msg)
@@ -747,19 +743,19 @@ function GuildRoll:defaultPrint(msg)
   if not DEFAULT_CHAT_FRAME:IsVisible() then
     FCF_SelectDockFrame(DEFAULT_CHAT_FRAME)
   end
-  DEFAULT_CHAT_FRAME:AddMessage(self:sf(out, msg))
+  DEFAULT_CHAT_FRAME:AddMessage(string.format(out,msg))
 end
 
 
 function GuildRoll:simpleSay(msg)
-  SendChatMessage(self:sf("guildroll: %s", msg), GuildRoll_saychannel)
+  SendChatMessage(string.format("guildroll: %s",msg), GuildRoll_saychannel)
 end
 
 function GuildRoll:adminSay(msg)
   -- API is broken on Elysium
   -- local g_listen, g_speak, officer_listen, officer_speak, g_promote, g_demote, g_invite, g_remove, set_gmotd, set_publicnote, view_officernote, edit_officernote, set_guildinfo = GuildControlGetRankFlags() 
   -- if (officer_speak) then
-  SendChatMessage(self:sf("guildroll: %s", msg),"OFFICER")
+  SendChatMessage(string.format("guildroll: %s",msg),"OFFICER")
   -- end
 end
 
@@ -798,27 +794,27 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
     if (who == self._playerName) or (for_main) then
       if what == "MainStanding" then
         if amount < 0 then
-          msg = self:sf(L["You have received a %d MainStanding penalty."], amount)
+          msg = string.format(L["You have received a %d MainStanding penalty."],amount)
         else
-          msg = self:sf(L["You have been awarded %d MainStanding."], amount)
+          msg = string.format(L["You have been awarded %d MainStanding."],amount)
         end
       elseif what == "AuxStanding" then
-        msg = self:sf(L["You have gained %d AuxStanding."], amount)
+        msg = string.format(L["You have gained %d AuxStanding."],amount)
       end
     elseif who == "ALL" and what == "DECAY" then
-      msg = self:sf(L["%s%% decay to Standing."], amount)
+      msg = string.format(L["%s%% decay to Standing."],amount)
     elseif who == "RAID" and what == "AWARD" then
-      msg = self:sf(L["%d MainStanding awarded to Raid."], amount)
+      msg = string.format(L["%d MainStanding awarded to Raid."],amount)
     elseif who == "RAID" and what == "AWARDAuxStanding" then
-      msg = self:sf(L["%d MainStanding awarded to Raid."], amount)
+      msg = string.format(L["%d MainStanding awarded to Raid."],amount)
     elseif who == "RESERVES" and what == "AWARD" then
-      msg = self:sf(L["%d AuxStanding awarded to Reserves."], amount)
+      msg = string.format(L["%d AuxStanding awarded to Reserves."],amount)
     elseif who == "GuildRollVERSION" then
       local out_of_date, version_type = self:parseVersion(self._versionString,what)
       if (out_of_date) and self._newVersionNotification == nil then
         self._newVersionNotification = true -- only inform once per session
-        self:defaultPrint(self:sf(L["New %s version available: |cff00ff00%s|r"], version_type, what))
-        self:defaultPrint(self:sf(L["Visit %s to update."], self._websiteString))
+        self:defaultPrint(string.format(L["New %s version available: |cff00ff00%s|r"],version_type,what))
+        self:defaultPrint(string.format(L["Visit %s to update."],self._websiteString))
       end
       if (IsGuildLeader()) then
         self:shareSettings()
@@ -879,12 +875,12 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
           end          
         end
         if (settings_notice) and settings_notice ~= "" then
-          local sender_rank = self:sf("%s(%s)", C:Colorize(BC:GetHexColor(class), sender), rank)
-          settings_notice = settings_notice..self:sf(L[" settings accepted from %s"], sender_rank)
+          local sender_rank = string.format("%s(%s)",C:Colorize(BC:GetHexColor(class),sender),rank)
+          settings_notice = settings_notice..string.format(L[" settings accepted from %s"],sender_rank)
           self:defaultPrint(settings_notice)
-         -- self._options.args["RollValueogress_tier_header"].name = self:sf(L["Progress Setting: %s"], GuildRoll_progress)
-         -- self._options.args["set_discount_header"].name = self:sf(L["Offspec Price: %s%%"], GuildRoll_discount*100)
-          self._options.args["set_min_ep_header"].name = self:sf(L["Minimum MainStanding: %s"], GuildRoll_minPE)
+         -- self._options.args["RollValueogress_tier_header"].name = string.format(L["Progress Setting: %s"],GuildRoll_progress)
+         -- self._options.args["set_discount_header"].name = string.format(L["Offspec Price: %s%%"],GuildRoll_discount*100)
+          self._options.args["set_min_ep_header"].name = string.format(L["Minimum MainStanding: %s"],GuildRoll_minPE)
         end
       end
     end
@@ -1016,9 +1012,9 @@ function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
 		 table.insert (award, mName)
       end
     end
-    self:simpleSay(self:sf(L["Giving %d MainStanding to all raidmembers"], ep))
-    self:addToLog(self:sf(L["Giving %d MainStanding to all raidmembers"], ep))    
-    local addonMsg = self:sf("RAID;AWARD;%s", ep)
+    self:simpleSay(string.format(L["Giving %d MainStanding to all raidmembers"],ep))
+    self:addToLog(string.format(L["Giving %d MainStanding to all raidmembers"],ep))    
+    local addonMsg = string.format("RAID;AWARD;%s",ep)
     self:addonMessage(addonMsg,"RAID")
     self:refreshPRTablets() 
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
@@ -1033,9 +1029,9 @@ function GuildRoll:award_raid_gp(gp) -- awards gp to raid members in zone
 		 table.insert (award, mName)
       end
     end
-    self:simpleSay(self:sf(L["Giving %d AuxStanding to all raidmembers"], gp))
-    self:addToLog(self:sf(L["Giving %d AuxStanding to all raidmembers"], gp))    
-    local addonMsg = self:sf("RAID;AWARDGP;%s", gp)
+    self:simpleSay(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))
+    self:addToLog(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))    
+    local addonMsg = string.format("RAID;AWARDGP;%s",gp)
     self:addonMessage(addonMsg,"RAID")
     self:refreshPRTablets() 
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
@@ -1049,9 +1045,9 @@ function GuildRoll:award_reserve_ep(ep) -- awards ep to reserve list
 		local _,mName =  self:givename_ep(name,ep,award)
 		 table.insert (award, mName)
     end
-    self:simpleSay(self:sf(L["Giving %d MainStanding to active reserves"], ep))
-    self:addToLog(self:sf(L["Giving %d MainStanding to active reserves"], ep))
-    local addonMsg = self:sf("RESERVES;AWARD;%s", ep)
+    self:simpleSay(string.format(L["Giving %d MainStanding to active reserves"],ep))
+    self:addToLog(string.format(L["Giving %d MainStanding to active reserves"],ep))
+    local addonMsg = string.format("RESERVES;AWARD;%s",ep)
     self:addonMessage(addonMsg,"GUILD")
     GuildRoll.reserves = {}
     reserves_blacklist = {}
@@ -1071,29 +1067,29 @@ function GuildRoll:givename_ep(getname,ep,block) -- awards ep to a single charac
     alt = getname
     getname = playerNameInGuild
     ep = self:num_round(GuildRoll_altpercent*ep)
-    postfix = self:sf(", %s\'s Pug MainStanding Bank.", alt)
+    postfix = string.format(", %s\'s Pug MainStanding Bank.",alt)
   elseif (GuildRollAltspool) then
     local main = self:parseAlt(getname)
     if (main) then
       alt = getname
       getname = main
       ep = self:num_round(GuildRoll_altpercent*ep)
-      postfix = self:sf(L[", %s\'s Main."], alt)
+      postfix = string.format(L[", %s\'s Main."],alt)
     end
   end
   if GuildRoll:TFind(block, getname) then
-		self:debugPrint(self:sf("Skipping %s, already awarded.", getname)) 
+		self:debugPrint(string.format("Skipping %s, already awarded.",getname)) 
 		return isPug, getname 
   end
   local old =  (self:get_ep_v3(getname) or 0) 
   local newep = ep +old
   self:update_ep_v3(getname,newep) 
-  self:debugPrint(self:sf(L["Giving %d MainStanding to %s%s. (Previous: %d, New: %d)"], ep, getname, postfix, old, newep))
+  self:debugPrint(string.format(L["Giving %d MainStanding to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep))
   if ep < 0 then -- inform admins and victim of penalties
-    local msg = self:sf(L["%s MainStanding Penalty to %s%s. (Previous: %d, New: %d)"], ep, getname, postfix, old, newep)
+    local msg = string.format(L["%s MainStanding Penalty to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
     self:adminSay(msg)
     self:addToLog(msg)
-    local addonMsg = self:sf("%s;%s;%s", getname, "MainStanding", ep)
+    local addonMsg = string.format("%s;%s;%s",getname,"MainStanding",ep)
     self:addonMessage(addonMsg,"GUILD")
   end  
   return isPug, getname
@@ -1124,30 +1120,30 @@ function GuildRoll:givename_gp(getname,gp,block) -- awards gp to a single charac
     alt = getname
     getname = playerNameInGuild
     gp = self:num_round(GuildRoll_altpercent*gp)
-    postfix = self:sf(", %s\'s Pug MainStanding Bank.", alt)
+    postfix = string.format(", %s\'s Pug MainStanding Bank.",alt)
   elseif (GuildRollAltspool) then
     local main = self:parseAlt(getname)
     if (main) then
       alt = getname
       getname = main
       gp = self:num_round(GuildRoll_altpercent*gp)
-      postfix = self:sf(L[", %s\'s Main."], alt)
+      postfix = string.format(L[", %s\'s Main."],alt)
     end
   end 
 	if GuildRoll:TFind (block, getname) then
-		self:debugPrint(self:sf("Skipping %s%s, already awarded.", getname, postfix)) 
+		self:debugPrint(string.format("Skipping %s%s, already awarded.",getname,postfix)) 
 		return isPug, getname
 	end
  
   local old = (self:get_gp_v3(getname) or 0) 
   local newgp = gp + old
   self:update_gp_v3(getname,newgp) 
-  self:debugPrint(self:sf(L["Giving %d AuxStanding to %s%s. (Previous: %d, New: %d)"], gp, getname, postfix, old, newgp))
+  self:debugPrint(string.format(L["Giving %d AuxStanding to %s%s. (Previous: %d, New: %d)"],gp,getname,postfix,old, newgp))
   if gp < 0 then -- inform admins and victim of penalties
-    local msg = self:sf(L["%s AuxStanding Penalty to %s%s. (Previous: %d, New: %d)"], gp, getname, postfix, old, newgp)
+    local msg = string.format(L["%s AuxStanding Penalty to %s%s. (Previous: %d, New: %d)"],gp,getname,postfix,old, newgp)
     self:adminSay(msg)
     self:addToLog(msg)
-    local addonMsg = self:sf("%s;%s;%s", getname, "AuxStanding", gp)
+    local addonMsg = string.format("%s;%s;%s",getname,"AuxStanding",gp)
     self:addonMessage(addonMsg,"GUILD")
   end  
   return isPug, getname
@@ -1165,10 +1161,10 @@ function GuildRoll:decay_epgp_v3()
       self:update_epgp_v3(ep,gp,i,name,officernote)
     end
   end
-  local msg = self:sf(L["All Standing decayed by %s%%"], (1-GuildRoll_decay)*100)
+  local msg = string.format(L["All Standing decayed by %s%%"],(1-GuildRoll_decay)*100)
   self:simpleSay(msg)
   if not (GuildRoll_saychannel=="OFFICER") then self:adminSay(msg) end
-  local addonMsg = self:sf("ALL;DECAY;%s", (1-(GuildRoll_decay or GuildRoll.VARS.decay))*100)
+  local addonMsg = string.format("ALL;DECAY;%s",(1-(GuildRoll_decay or GuildRoll.VARS.decay))*100)
   self:addonMessage(addonMsg,"GUILD")
   self:addToLog(msg)
   self:refreshPRTablets() 
@@ -1185,9 +1181,9 @@ function GuildRoll:gp_reset_v3()
       end
     end
     local msg = L["All Standing has been reset to 0/%d."]
-    self:debugPrint(self:sf(msg, GuildRoll.VARS.baseAE))
-    self:adminSay(self:sf(msg, GuildRoll.VARS.baseAE))
-    self:addToLog(self:sf(msg, GuildRoll.VARS.baseAE))
+    self:debugPrint(string.format(msg,GuildRoll.VARS.baseAE))
+    self:adminSay(string.format(msg,GuildRoll.VARS.baseAE))
+    self:addToLog(string.format(msg,GuildRoll.VARS.baseAE))
   end
 end
 
@@ -1201,9 +1197,9 @@ function GuildRoll:ClearGP_v3()
       end
     end
     local msg = L["All AuxStanding has been reset to %d."]
-    self:debugPrint(self:sf(msg, GuildRoll.VARS.baseAE))
-    self:adminSay(self:sf(msg, GuildRoll.VARS.baseAE))
-    self:addToLog(self:sf(msg, GuildRoll.VARS.baseAE))
+    self:debugPrint(string.format(msg,GuildRoll.VARS.baseAE))
+    self:adminSay(string.format(msg,GuildRoll.VARS.baseAE))
+    self:addToLog(string.format(msg,GuildRoll.VARS.baseAE))
   end
 end
 
@@ -1217,7 +1213,7 @@ function GuildRoll:my_epgp_announce(use_main)
     ep,gp = (self:get_ep_v3(self._playerName) or 0), (self:get_gp_v3(self._playerName) or GuildRoll.VARS.baseAE)
   end
   local baseRoll = GuildRoll:GetBaseRollValue(ep,gp)
-  local msg = self:sf(L["You now have: %d MainStanding %d AuxStanding + (%d)"], ep, gp, baseRoll)
+  local msg = string.format(L["You now have: %d MainStanding %d AuxStanding + (%d)"], ep,gp,baseRoll)
   self:defaultPrint(msg)
 end
 
@@ -1240,9 +1236,9 @@ GuildRoll.independentProfile = true
 function GuildRoll:OnTooltipUpdate()
   local hint = L["|cffffff00Click|r to toggle Standings.%s \n|cffffff00Right-Click|r for Options."]
   if (admin()) then
-    hint = self:sf(hint, L[" \n|cffffff00Ctrl+Click|r to toggle Reserves. \n|cffffff00Alt+Click|r to toggle Bids. \n|cffffff00Shift+Click|r to toggle Loot. \n|cffffff00Ctrl+Alt+Click|r to toggle Alts. \n|cffffff00Ctrl+Shift+Click|r to toggle Logs."])
+    hint = string.format(hint,L[" \n|cffffff00Ctrl+Click|r to toggle Reserves. \n|cffffff00Alt+Click|r to toggle Bids. \n|cffffff00Shift+Click|r to toggle Loot. \n|cffffff00Ctrl+Alt+Click|r to toggle Alts. \n|cffffff00Ctrl+Shift+Click|r to toggle Logs."])
   else
-    hint = self:sf(hint, "")
+    hint = string.format(hint,"")
   end
   T:SetHint(hint)
 end
@@ -1337,7 +1333,7 @@ function GuildRoll:buildClassMemberTable(roster,epgp)
       c[class].args[name] = { }
       c[class].args[name].type = "text"
       c[class].args[name].name = name
-      c[class].args[name].desc = self:sf(desc, name)
+      c[class].args[name].desc = string.format(desc,name)
       c[class].args[name].usage = usage
       if epgp == "MainStanding" then
         c[class].args[name].get = "suggestedAwardMainStanding"
@@ -1448,7 +1444,7 @@ function GuildRoll:sendReserverResponce()
       if GuildRoll_main == self._playerName then
         SendChatMessage("+","CHANNEL",nil,GuildRoll.reservesChannelID)
       else
-        SendChatMessage(self:sf("+%s", GuildRoll_main),"CHANNEL",nil,GuildRoll.reservesChannelID)
+        SendChatMessage(string.format("+%s",GuildRoll_main),"CHANNEL",nil,GuildRoll.reservesChannelID)
       end
     end
   end
@@ -1478,14 +1474,14 @@ function GuildRoll:captureReserveChatter(text, sender, _, _, _, _, _, _, channel
             reserves_blacklist[reserve_alt] = true
             table.insert(GuildRoll.reserves,{reserve,reserve_class,reserve_rank,reserve_alt})
           else
-            self:defaultPrint(self:sf(L["|cffff0000%s|r trying to add %s to Reserves, but has already added a member. Discarding!"], reserve_alt, reserve))
+            self:defaultPrint(string.format(L["|cffff0000%s|r trying to add %s to Reserves, but has already added a member. Discarding!"],reserve_alt,reserve))
           end
         else
           if not reserves_blacklist[reserve] then
             reserves_blacklist[reserve] = true
             table.insert(GuildRoll.reserves,{reserve,reserve_class,reserve_rank})
           else
-            self:defaultPrint(self:sf(L["|cffff0000%s|r has already been added to Reserves. Discarding!"], reserve))
+            self:defaultPrint(string.format(L["|cffff0000%s|r has already been added to Reserves. Discarding!"],reserve))
           end
         end
       end
@@ -1550,7 +1546,7 @@ function GuildRoll:verifyGuildMember(name,silent,ignorelevel)
     end
   end
   if (name) and name ~= "" and not (silent) then
-    self:defaultPrint(self:sf(L["%s not found in the guild or not max level!"], name))
+    self:defaultPrint(string.format(L["%s not found in the guild or not max level!"],name))
   end
   return
 end
@@ -1792,7 +1788,7 @@ StaticPopupDialogs["RET_EP_RESERVE_AFKCHECK_RESPONCE"] = {
   end,
   OnUpdate = function(elapsed,dialog)
     this._timeout = this._timeout - elapsed
-    getglobal(dialog:GetName().."Text"):SetText(GuildRoll:sf(L["Reserves AFKCheck. Are you available? |cff00ff00%0d|rsec."], this._timeout))
+    getglobal(dialog:GetName().."Text"):SetText(string.format(L["Reserves AFKCheck. Are you available? |cff00ff00%0d|rsec."],this._timeout))
     if (this._timeout<=0) then
       this._timeout = 0
       dialog:Hide()
@@ -1877,7 +1873,7 @@ function GuildRoll:RollCommand(isSRRoll,isDSRRoll,isOS,bonus)
 			
 			gp = GuildRoll_pugCache[key][playerName][2]
 			local inguildn = GuildRoll_pugCache[key][playerName][3] or ""
-			desc = self:sf("PUG(%s)", inguildn)
+			desc = string.format("PUG(%s)",inguildn)
 		else
 			ep = 0
 			gp = 0
@@ -1931,23 +1927,23 @@ function GuildRoll:RollCommand(isSRRoll,isDSRRoll,isOS,bonus)
   RandomRoll(minRoll, maxRoll)
   local cappedGP =  GuildRoll:GetRollingGP(gp)
   -- Prepare the announcement message
-  local bonusText = " as "..tostring(desc).." of "..tostring(hostG)
-  local message = self:sf("I rolled Main Spec %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep, cappedGP, gp, bonusText)
+  local bonusText = " as "..desc.." of "..hostG
+  local message = string.format("I rolled Main Spec %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep ,cappedGP, gp,  bonusText)
   
   if(isOS) then
-    message = self:sf("I rolled Off Spec %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep, cappedGP, gp, bonusText)
+    message = string.format("I rolled Off Spec %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep ,cappedGP, gp,  bonusText)
   end
   if(isSRRoll) then
-    message = self:sf("I rolled SR %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep, cappedGP, gp, bonusText)
+    message = string.format("I rolled SR %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep ,cappedGP, gp, bonusText)
   end
   if(isDSRRoll) then
-    message = self:sf("I rolled Double SR %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep, cappedGP, gp, bonusText)
+    message = string.format("I rolled Double SR %d - %d with %d "..L["MainStanding"].." +%d "..L["AuxStanding"].." (%d)%s", minRoll, maxRoll, ep ,cappedGP, gp, bonusText)
   end
 
   if bonus > 0 then
     local weeks = math.floor(bonus / 20)
-    bonusText = self:sf(" +%d for %d weeks", bonus, weeks)..bonusText
-    message = self:sf("I rolled Cumulative SR %d - %d with %d "..L["MainStanding"].." +%d(%d"..L["AuxStanding"]..")%s", minRoll, maxRoll, ep, cappedGP, gp, bonusText)
+    bonusText = string.format(" +%d for %d weeks", bonus, weeks)..bonusText
+    message = string.format("I rolled Cumulative SR %d - %d with %d "..L["MainStanding"].." +%d(%d"..L["AuxStanding"]..")%s", minRoll, maxRoll, ep ,cappedGP, gp, bonusText)
   end
   -- Determine the chat channel
   local chatType = UnitInRaid("player") and "RAID" or "SAY"
@@ -1991,13 +1987,13 @@ function GuildRoll:CheckPugStanding()
   
   for guildName, guildData in pairs(GuildRoll_pugCache) do
     if guildData[playerName] then
-      self:defaultPrint(self:sf("Your "..L["MainStanding"].." for %s: %d , %d", guildName, guildData[playerName][1], guildData[playerName][2]))
+      self:defaultPrint(string.format("Your "..L["MainStanding"].." for %s: %d , %d", guildName, guildData[playerName][1],guildData[playerName][2]))
       foundEP = true
     end
   end
   
   if not foundEP then
-    self:defaultPrint("No "..L["MainStanding"].." found for " .. tostring(playerName) .. " in any guild")
+    self:defaultPrint("No "..L["MainStanding"].." found for " .. playerName .. " in any guild")
   end
 end
 function GuildRoll:getAllPugs()
@@ -2044,7 +2040,7 @@ function GuildRoll:updateAllPugStanding( force )
 		packet={}
 		pi = 0
 	end
-  self:defaultPrint(self:sf("Updated "..L["MainStanding"].." for %d Pug player(s)", count))
+  self:defaultPrint(string.format("Updated "..L["MainStanding"].." for %d Pug player(s)", count))
 end
 
 
@@ -2298,7 +2294,7 @@ function GuildRoll:ParseHostInfo(  sender , text )
 		GuildRoll.VARS.HostGuildName =  fields[1] 
 		
 		if oldHost~=GuildRoll.VARS.HostGuildName then
-			self:defaultPrint(self:sf("This Raid is hosted by %s.", HostGuildName))
+			self:defaultPrint(string.format("This Raid is hosted by %s.", HostGuildName))
 		end
 		if HostGuildName == GuildName then
 			-- enable guildrules
@@ -2320,10 +2316,10 @@ function GuildRoll:ParseHostInfo(  sender , text )
 							GuildRoll_pugCache[key] = {}
 						end
 						GuildRoll_pugCache[key][fields[3]] = {ep,gp,PugReg}
-						self:defaultPrint(self:sf("Updated Standing for %s as %s in guild %s: %d : %d",  TargetMember, PugReg, HostGuildName, ep, gp))
+						self:defaultPrint(string.format("Updated Standing for %s as %s in guild %s: %d : %d",  TargetMember, PugReg, HostGuildName, ep,gp))
 					else
 						-- announce unregistered
-						self:defaultPrint(self:sf("You don't have standing bank character in %s, contact one of their officers for that", HostGuildName))
+						self:defaultPrint(string.format("You don't have standing bank character in %s, contact one of their officers for that", HostGuildName))
 					end
 				end
 		end
@@ -2383,7 +2379,7 @@ function GuildRoll:parsePugEpUpdatePacket(message)
         end
         GuildRoll_pugCache[key][playerName] = {ep,gp}
 
-        self:defaultPrint(self:sf("Updated Standing for %s in guild %s as %s: %d : %d", playerName, guildName, inGuildName, ep, gp))
+        self:defaultPrint(string.format("Updated Standing for %s in guild %s as %s: %d : %d", playerName, guildName,inGuildName, ep,gp))
         end
       else
         self:defaultPrint("Could not parse guild name from broadcast "  )
