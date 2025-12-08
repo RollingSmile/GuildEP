@@ -367,11 +367,11 @@ end
 
 
 function RetRoll_standings:OnTooltipUpdate()
-  -- Create category with 2 columns: Name | EP
+  -- Create category with 2 columns: Name | EffortPoints
   local cat = T:AddCategory(
       "columns", 2,
       "text",  C:Orange(L["Name"]),   "child_textR",    1, "child_textG",    1, "child_textB",    1, "LEFT",  "LEFT",
-      "text2", C:Orange(L["Main Standing"]),     "child_text2R",   1, "child_text2G",   1, "child_text2B",   1, "RIGHT", "RIGHT"
+      "text2", C:Orange(L["EffortPoints"]),     "child_text2R",   1, "child_text2G",   1, "child_text2B",   1, "RIGHT", "RIGHT"
     )
   local t = self:BuildStandingsTable()
   local separator
@@ -400,10 +400,12 @@ function RetRoll_standings:OnTooltipUpdate()
 
     local text = C:Colorize(BC:GetHexColor(class), displayName)
     local text2
-    if RetRoll_minPE > 0 and ep < RetRoll_minPE then
-      text2 = C:Red(string.format("%.4g", ep))
+    -- Use GetEPForMember helper to get EP value
+    local memberEP = RetRoll:GetEPForMember(originalName)
+    if RetRoll_minPE > 0 and memberEP < RetRoll_minPE then
+      text2 = C:Red(string.format("%.4g", memberEP))
     else
-      text2 = string.format("%.4g", ep)
+      text2 = string.format("%.4g", memberEP)
     end
 
     if ((RetRoll._playerName) and RetRoll._playerName == originalName) or ((RetRoll_main) and RetRoll_main == originalName) then

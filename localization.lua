@@ -53,6 +53,7 @@ L:RegisterTranslations("enUS", function() return {
   ["Import standings from csv."] = true,
   ["MainStanding"] = "PS",
   ["AuxStanding"] = "EP",
+  ["EffortPoints"] = "EP",
   ["RollValue"] = true,
   ["Standing"] = true,
   ["Main Standing"] = "Primary",
@@ -252,6 +253,7 @@ L:RegisterTranslations("zhCN", function() return {
   ["MainStanding"] = "PS",
   ["Main Standing"] = "Primary",
   ["Auxiliary"] = "EP",
+  ["EffortPoints"] = "EP",
   ["Roll Value"] = "Roll",
   IMPORT_WARNING = [[警告: 
 导入会覆盖所有现有的Standing值.

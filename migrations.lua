@@ -19,5 +19,110 @@ function RetRoll:v2tov3()
   RetRoll_dbver = 3
 end
 
+-- Migrate_Main_to_EP()
+-- Migrates MainStanding to EP field in saved variables
+-- Conversion rule: EP = MainStanding (Option B)
+-- Does NOT modify officer notes
+-- Usage: Call manually via RetRoll:Migrate_Main_to_EP()
+-- @return Number of members migrated
+function RetRoll:Migrate_Main_to_EP()
+  local count = 0
+  
+  -- Initialize saved variables structure if needed
+  if not self.db then
+    self.db = {}
+  end
+  if not self.db.profile then
+    self.db.profile = {}
+  end
+  if not self.db.profile.members then
+    self.db.profile.members = {}
+  end
+  
+  -- Create backup storage
+  if not self.db.profile._migration_backup_main_to_ep then
+    self.db.profile._migration_backup_main_to_ep = {}
+  end
+  
+  -- Scan all guild members
+  for i = 1, GetNumGuildMembers(1) do
+    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
+    
+    if name then
+      -- Initialize member data if needed
+      if not self.db.profile.members[name] then
+        self.db.profile.members[name] = {}
+      end
+      
+      local memberData = self.db.profile.members[name]
+      
+      -- Only migrate if EP field doesn't exist yet
+      if not memberData.EP then
+        local mainStanding = memberData.MainStanding or 0
+        
+        -- Only migrate if MainStanding is not 0
+        if mainStanding ~= 0 then
+          -- Create backup
+          self.db.profile._migration_backup_main_to_ep[name] = {
+            MainStanding = mainStanding,
+            AuxStanding = memberData.AuxStanding
+          }
+          
+          -- Set EP = MainStanding
+          memberData.EP = mainStanding
+          memberData._migrated_from_main = true
+          count = count + 1
+        end
+      end
+    end
+  end
+  
+  self:defaultPrint(string.format("Migrated %d members from MainStanding to EP.", count))
+  return count
+end
+
+-- Rollback_Migrate_Main_to_EP()
+-- Rolls back the migration from MainStanding to EP
+-- Restores MainStanding and AuxStanding from backup
+-- Removes EP field where applicable
+-- Usage: Call manually via RetRoll:Rollback_Migrate_Main_to_EP()
+-- @return Number of members rolled back
+function RetRoll:Rollback_Migrate_Main_to_EP()
+  local count = 0
+  
+  if not self.db or not self.db.profile or not self.db.profile._migration_backup_main_to_ep then
+    self:defaultPrint("No migration backup found. Nothing to rollback.")
+    return 0
+  end
+  
+  local backup = self.db.profile._migration_backup_main_to_ep
+  
+  for name, backupData in pairs(backup) do
+    if self.db.profile.members[name] then
+      local memberData = self.db.profile.members[name]
+      
+      -- Restore MainStanding and AuxStanding from backup
+      if backupData.MainStanding then
+        memberData.MainStanding = backupData.MainStanding
+      end
+      if backupData.AuxStanding then
+        memberData.AuxStanding = backupData.AuxStanding
+      end
+      
+      -- Remove EP and migration marker
+      memberData.EP = nil
+      memberData._migrated_from_main = nil
+      
+      count = count + 1
+    end
+  end
+  
+  -- Clear the backup
+  self.db.profile._migration_backup_main_to_ep = {}
+  
+  self:defaultPrint(string.format("Rolled back %d members from EP to MainStanding.", count))
+  return count
+end
+
 -- GLOBALS: RetRoll_saychannel,RetRoll_groupbyclass,RetRoll_groupbyarmor,RetRoll_groupbyrole,RetRoll_raidonly,RetRoll_decay,RetRoll_minPE,RetRoll_reservechannel,RetRoll_main,RetRoll_progress,RetRoll_discount,RetRoll_log,RetRoll_dbver,RetRoll_looted
 -- GLOBALS: RetRoll,RetRoll_prices,RetRoll_standings,RetRoll_bids,RetRoll_loot,RetRoll_reserves,RetRollAlts,RetRoll_logs
