@@ -24,7 +24,7 @@ local function ExecuteCommand(command)
         end
     elseif command == "roll csr" then
         -- Use static popup dialog to input CSR weeks (0..15) and validate
-        StaticPopupDialogs["CSR_INPUT"] = {
+        StaticPopupDialogs["RET_CSR_INPUT"] = {
             text = "Enter number of weeks you SR this item (0..15):",
             button1 = TEXT(ACCEPT),
             button2 = TEXT(CANCEL),
@@ -62,7 +62,7 @@ local function ExecuteCommand(command)
                 if number ~= nil then
                     local bonus = GuildRoll:calculateBonus(number)
                     if bonus == nil then
-                        print("Invalid number entered. Valid values: 1..15")
+                        print("Invalid number entered. Valid values: 0,1 or 2..15")
                     else
                         GuildRoll:RollCommand(true, false, false, bonus)
                     end
@@ -79,7 +79,7 @@ local function ExecuteCommand(command)
             whileDead = 1,
             hideOnEscape = 1,
         }
-        StaticPopup_Show("CSR_INPUT")
+        StaticPopup_Show("RET_CSR_INPUT")
     elseif command == "show ep" then
         if GuildRoll_standings and GuildRoll_standings.Toggle then
             GuildRoll_standings:Toggle()
@@ -255,42 +255,51 @@ end)
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("GUILD_ROSTER_UPDATE")
+
+-- Safer rebuild handler: always rebuild the options list deterministically
 eventFrame:SetScript("OnEvent", function(self, event, ...)
-    -- On login or roster update, if the CSR visibility might change, update the UI button list
-    if event == "GUILD_ROSTER_UPDATE" or event == "PLAYER_LOGIN" then
-        local csrVisible = CanSeeCSR()
-        local foundCSR = false
-        for _, opt in ipairs(options) do
-            if opt[1] == "CSR" then foundCSR = true; break end
-        end
-        if csrVisible and not foundCSR then
-            -- compute a safe insertion position (avoid using '#' operator)
-            local n = table.getn(options) or 0
-            local pos = n - 4
-            if pos < 1 then pos = 1 end
-            table.insert(options, pos, { "CSR", "roll csr" })
-            -- remove and re-create children of rollOptionsFrame
-            for i = rollOptionsFrame:GetNumChildren(), 1, -1 do
-                local child = select(i, rollOptionsFrame:GetChildren())
-                if child then
-                    child:Hide()
-                    child:SetParent(nil)
-                end
-            end
-            previousButton = rollOptionsFrame
-            for _, option in ipairs(options) do
-                local buttonFrame = CreateRollButton(option[1], rollOptionsFrame, option[2], previousButton, option[3] or 110, option[4] or false)
-                if previousButton == rollOptionsFrame then
-                    buttonFrame:SetPoint("TOP", rollOptionsFrame, "TOP", 0, 0)
-                else
-                    buttonFrame:SetPoint("TOP", previousButton, "BOTTOM", 0, 5)
-                end
-                previousButton = buttonFrame
+    if event ~= "GUILD_ROSTER_UPDATE" and event ~= "PLAYER_LOGIN" then
+        return
+    end
+
+    -- Rebuild the options table fresh based on current CSR visibility
+    local newOptions = {
+        { "EP(MS)", "roll ep" },
+        { "SR", "roll sr" },
+    }
+    if CanSeeCSR() then
+        table.insert(newOptions, { "CSR", "roll csr" })
+    end
+    table.insert(newOptions, { "101", "roll 101" })
+    table.insert(newOptions, { "100", "roll 100" })
+    table.insert(newOptions, { "99", "roll 99" })
+    table.insert(newOptions, { "98", "roll 98" })
+    table.insert(newOptions, { "Standings", "show ep" })
+
+    -- Clear existing option widgets safely
+    if rollOptionsFrame then
+        for i = rollOptionsFrame:GetNumChildren(), 1, -1 do
+            local child = select(i, rollOptionsFrame:GetChildren())
+            if child then
+                child:Hide()
+                child:SetParent(nil)
             end
         end
     end
 
-    -- Restore position behavior
+    -- Recreate buttons under the rollOptionsFrame
+    previousButton = rollOptionsFrame
+    for _, opt in ipairs(newOptions) do
+        local buttonFrame = CreateRollButton(opt[1], rollOptionsFrame, opt[2], previousButton, opt[3] or 110, opt[4] or false)
+        if previousButton == rollOptionsFrame then
+            buttonFrame:SetPoint("TOP", rollOptionsFrame, "TOP", 0, 0)
+        else
+            buttonFrame:SetPoint("TOP", previousButton, "BOTTOM", 0, 5)
+        end
+        previousButton = buttonFrame
+    end
+
+    -- Restore saved position behavior
     if GuildRoll_RollPos.x and GuildRoll_RollPos.y then
         rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", GuildRoll_RollPos.x, GuildRoll_RollPos.y)
     else
