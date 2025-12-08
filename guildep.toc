@@ -7,8 +7,8 @@
 ## Version: 1.0
 ## X-Alpha: Test
 ## OptionalDeps: Ace2
-## SavedVariables: RetRoll_saychannel, RetRoll_groupbyclass, RetRoll_groupbyarmor, RetRoll_groupbyrole, RetRoll_raidonly, RetRoll_dbver, RetRoll_debug, RetRoll_fubar
-## SavedVariablesPerCharacter: RetRoll_main, RetRoll_log, RetRoll_looted, RetRoll_decay, RetRoll_minPE, RetRoll_reservechannel, RetRoll_progress, RetRoll_discount, RetRollAltspool, RetRoll_altpercent, RetRoll_pugStanding,RetRoll_showRollWindow
+## SavedVariables: GuildRoll_saychannel, GuildRoll_groupbyclass, GuildRoll_groupbyarmor, GuildRoll_groupbyrole, GuildRoll_raidonly, GuildRoll_dbver, GuildRoll_debug, GuildRoll_fubar
+## SavedVariablesPerCharacter: GuildRoll_main, GuildRoll_log, GuildRoll_looted, GuildRoll_decay, GuildRoll_minPE, GuildRoll_reservechannel, GuildRoll_progress, GuildRoll_discount, GuildRollAltspool, GuildRoll_altpercent, GuildRoll_pugStanding,GuildRoll_showRollWindow
 
 Libs\AceLibrary\AceLibrary.lua
 Libs\AceOO-2.0\AceOO-2.0.lua
