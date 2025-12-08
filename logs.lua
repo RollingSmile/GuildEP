@@ -2,16 +2,16 @@ local T = AceLibrary("Tablet-2.0")
 local D = AceLibrary("Dewdrop-2.0")
 local C = AceLibrary("Crayon-2.0")
 local CP = AceLibrary("Compost-2.0")
-local L = AceLibrary("AceLocale-2.2"):new("retroll")
+local L = AceLibrary("AceLocale-2.2"):new("guildroll")
 
-RetRoll_logs = RetRoll:NewModule("RetRoll_logs", "AceDB-2.0")
-RetRoll_logs.tmp = CP:Acquire()
+GuildRoll_logs = GuildRoll:NewModule("GuildRoll_logs", "AceDB-2.0")
+GuildRoll_logs.tmp = CP:Acquire()
 
-function RetRoll_logs:OnEnable()
-  if not T:IsRegistered("RetRoll_logs") then
-    T:Register("RetRoll_logs",
+function GuildRoll_logs:OnEnable()
+  if not T:IsRegistered("GuildRoll_logs") then
+    T:Register("GuildRoll_logs",
       "children", function()
-        T:SetTitle(L["retroll logs"])
+        T:SetTitle(L["guildroll logs"])
         self:OnTooltipUpdate()
       end,
       "showTitleWhenDetached", true,
@@ -21,39 +21,39 @@ function RetRoll_logs:OnEnable()
         D:AddLine(
           "text", L["Refresh"],
           "tooltipText", L["Refresh window"],
-          "func", function() RetRoll_logs:Refresh() end
+          "func", function() GuildRoll_logs:Refresh() end
         )
         D:AddLine(
           "text", L["Clear"],
           "tooltipText", L["Clear Logs."],
-          "func", function() RetRoll_log = {} RetRoll_logs:Refresh() end
+          "func", function() GuildRoll_log = {} GuildRoll_logs:Refresh() end
         )
       end      
     )
   end
-  if not T:IsAttached("RetRoll_logs") then
-    T:Open("RetRoll_logs")
+  if not T:IsAttached("GuildRoll_logs") then
+    T:Open("GuildRoll_logs")
   end
 end
 
-function RetRoll_logs:OnDisable()
-  T:Close("RetRoll_logs")
+function GuildRoll_logs:OnDisable()
+  T:Close("GuildRoll_logs")
 end
 
-function RetRoll_logs:Refresh()
-  T:Refresh("RetRoll_logs")
+function GuildRoll_logs:Refresh()
+  T:Refresh("GuildRoll_logs")
 end
 
-function RetRoll_logs:setHideScript()
+function GuildRoll_logs:setHideScript()
   local i = 1
   local tablet = getglobal(string.format("Tablet20DetachedFrame%d",i))
   while (tablet) and i<100 do
-    if tablet.owner ~= nil and tablet.owner == "RetRoll_logs" then
-      RetRoll:make_escable(string.format("Tablet20DetachedFrame%d",i),"add")
+    if tablet.owner ~= nil and tablet.owner == "GuildRoll_logs" then
+      GuildRoll:make_escable(string.format("Tablet20DetachedFrame%d",i),"add")
       tablet:SetScript("OnHide",nil)
       tablet:SetScript("OnHide",function()
-          if not T:IsAttached("RetRoll_logs") then
-            T:Attach("RetRoll_logs")
+          if not T:IsAttached("GuildRoll_logs") then
+            T:Attach("GuildRoll_logs")
             this:SetScript("OnHide",nil)
           end
         end)
@@ -64,55 +64,55 @@ function RetRoll_logs:setHideScript()
   end  
 end
 
-function RetRoll_logs:Top()
-  if T:IsRegistered("RetRoll_logs") and (T.registry.RetRoll_logs.tooltip) then
-    T.registry.RetRoll_logs.tooltip.scroll=0
+function GuildRoll_logs:Top()
+  if T:IsRegistered("GuildRoll_logs") and (T.registry.GuildRoll_logs.tooltip) then
+    T.registry.GuildRoll_logs.tooltip.scroll=0
   end  
 end
 
-function RetRoll_logs:Toggle(forceShow)
+function GuildRoll_logs:Toggle(forceShow)
   self:Top()
-  if T:IsAttached("RetRoll_logs") then
-    T:Detach("RetRoll_logs") -- show
-    if (T:IsLocked("RetRoll_logs")) then
-      T:ToggleLocked("RetRoll_logs")
+  if T:IsAttached("GuildRoll_logs") then
+    T:Detach("GuildRoll_logs") -- show
+    if (T:IsLocked("GuildRoll_logs")) then
+      T:ToggleLocked("GuildRoll_logs")
     end
     self:setHideScript()
   else
     if (forceShow) then
-      RetRoll_logs:Refresh()
+      GuildRoll_logs:Refresh()
     else
-      T:Attach("RetRoll_logs") -- hide
+      T:Attach("GuildRoll_logs") -- hide
     end
   end  
 end
 
-function RetRoll_logs:reverse(arr)
-  CP:Recycle(RetRoll_logs.tmp)
+function GuildRoll_logs:reverse(arr)
+  CP:Recycle(GuildRoll_logs.tmp)
   for _,val in ipairs(arr) do
-    table.insert(RetRoll_logs.tmp,val)
+    table.insert(GuildRoll_logs.tmp,val)
   end
-  local i, j = 1, table.getn(RetRoll_logs.tmp)
+  local i, j = 1, table.getn(GuildRoll_logs.tmp)
   while i < j do
-    RetRoll_logs.tmp[i], RetRoll_logs.tmp[j] = RetRoll_logs.tmp[j], RetRoll_logs.tmp[i]
+    GuildRoll_logs.tmp[i], GuildRoll_logs.tmp[j] = GuildRoll_logs.tmp[j], GuildRoll_logs.tmp[i]
     i = i + 1
     j = j - 1
   end
-  return RetRoll_logs.tmp
+  return GuildRoll_logs.tmp
 end
 
-function RetRoll_logs:BuildLogsTable()
+function GuildRoll_logs:BuildLogsTable()
   -- {timestamp,line}
-  return self:reverse(RetRoll_log)
+  return self:reverse(GuildRoll_log)
 end
 
-function RetRoll_logs:OnTooltipUpdate()
+function GuildRoll_logs:OnTooltipUpdate()
   local cat = T:AddCategory(
       "columns", 2,
       "text",  C:Orange(L["Time"]),   "child_textR",    1, "child_textG",    1, "child_textB",    1, "child_justify",  "LEFT",
       "text2", C:Orange(L["Action"]),     "child_text2R",   1, "child_text2G",   1, "child_text2B",   1, "child_justify2", "RIGHT"
     )
-  local t = RetRoll_logs:BuildLogsTable()
+  local t = GuildRoll_logs:BuildLogsTable()
   for i = 1, table.getn(t) do
     local timestamp, line = unpack(t[i])
     cat:AddLine(
@@ -122,5 +122,5 @@ function RetRoll_logs:OnTooltipUpdate()
   end  
 end
 
--- GLOBALS: RetRoll_saychannel,RetRoll_groupbyclass,RetRoll_groupbyarmor,RetRoll_groupbyrole,RetRoll_raidonly,RetRoll_decay,RetRoll_minPE,RetRoll_reservechannel,RetRoll_main,RetRoll_progress,RetRoll_discount,RetRoll_log,RetRoll_dbver,RetRoll_looted
--- GLOBALS: RetRoll,RetRoll_prices,RetRoll_standings,RetRoll_bids,RetRoll_loot,RetRoll_reserves,RetRollAlts,RetRoll_logs
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_reservechannel,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRoll_log,GuildRoll_dbver,GuildRoll_looted
+-- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRoll_reserves,GuildRollAlts,GuildRoll_logs
