@@ -1689,17 +1689,17 @@ function GuildRoll:RollCommand(isSRRoll, bonus)
   
   -- Prepare the announcement message
   local bonusText = " as "..desc.." of "..hostG
-  local message = string.format("I rolled MS \"%d - %d\" with %d "..L["MainStanding"], minRoll, maxRoll, ep)..bonusText
+  local message = string.format("I rolled MS \"%d - %d\" with %d "..L["MainStanding"].."%s", minRoll, maxRoll, ep, bonusText)
   
   if(isSRRoll) then
-    message = string.format("I rolled SR \"%d - %d\" with %d "..L["MainStanding"], minRoll, maxRoll, ep)..bonusText
+    message = string.format("I rolled SR \"%d - %d\" with %d "..L["MainStanding"].."%s", minRoll, maxRoll, ep, bonusText)
   end
 
   if bonus > 0 then
     -- Calculate weeks: bonus = (weeks - 1) * CSRWeekBonus, so weeks = (bonus / CSRWeekBonus) + 1
     local weeks = math.floor(bonus / GuildRoll.VARS.CSRWeekBonus) + 1
     local csrBonusText = string.format("%d weeks", weeks)
-    message = string.format("I rolled SR \"%d - %d\" with %d "..L["MainStanding"].." + \"%s\"", minRoll, maxRoll, ep, csrBonusText)..bonusText
+    message = string.format("I rolled SR \"%d - %d\" with %d "..L["MainStanding"].." + \"%s\"%s", minRoll, maxRoll, ep, csrBonusText, bonusText)
   end
   -- Determine the chat channel
   local chatType = UnitInRaid("player") and "RAID" or "SAY"
