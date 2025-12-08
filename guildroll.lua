@@ -21,8 +21,8 @@ GuildRoll.VARS = {
   maxloglines = 500,
   prefix = "RRG_",
   inRaid = false,
-  reservechan = "Reserves",
-  reserveanswer = "^(%+)(%a*)$",
+  -- reservechan = "Reserves", -- Feature removed
+  -- reserveanswer = "^(%+)(%a*)$", -- Feature removed
   bop = C:Red("BoP"),
   boe = C:Yellow("BoE"),
   nobind = C:White("NoBind"), 
@@ -241,7 +241,6 @@ GuildRoll.cmdtable = function()
     return membercmd
   end
 end
-GuildRoll.reserves = {}
 GuildRoll.alts = {} 
 function GuildRoll:buildMenu()
   if not (options) then
@@ -330,7 +329,7 @@ function GuildRoll:buildMenu()
     options.args["set_main"] = {
       type = "text",
       name = L["Set Main"],
-      desc = L["Set your Main Character for Reserve List."],
+      desc = L["Set your Main Character."],
       order = 70,
       usage = "<MainChar>",
       get = function() return GuildRoll_main end,
@@ -591,16 +590,11 @@ function GuildRoll:delayedInit()
   if (IsInGuild()) then
     GuildRoll.VARS.GuildName  = (GetGuildInfo("player"))
     if (GuildRoll.VARS.GuildName ) and GuildRoll.VARS.GuildName  ~= "" then
-      GuildRoll_reservechannel = string.format("%sReserves",(string.gsub(GuildRoll.VARS.GuildName ," ",""))) 
     --  GuildRoll.VARS.GuildPugBroadCastCN  = GuildRoll:GetGuildPugChannelName(GuildRoll.VARS.GuildName)
      -- if (admin()) then JoinChannelByName(GuildRoll.VARS.GuildPugBroadCastCN) end
     end
   end
-  if GuildRoll_reservechannel == nil then GuildRoll_reservechannel = GuildRoll.VARS.reservechan end  
-  local reservesChannelID = tonumber((GetChannelName(GuildRoll_reservechannel)))
-  if (reservesChannelID) and (reservesChannelID ~= 0) then
-    self:reservesToggle(true)
-  end
+  -- Reserves channel initialization removed
   -- migrate Standing storage if needed
   
  
@@ -650,7 +644,7 @@ function GuildRoll:OnUpdate(elapsed)
 
   if lastUpdate > 0.5 then
     lastUpdate = 0
-    GuildRoll_reserves:Refresh()
+    -- GuildRoll_reserves:Refresh() removed (reserves feature removed)
   end
 end
 
@@ -780,8 +774,6 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
       msg = string.format(L["%d MainStanding awarded to Raid."],amount)
     elseif who == "RAID" and what == "AWARDAuxStanding" then
       msg = string.format(L["%d MainStanding awarded to Raid."],amount)
-    elseif who == "RESERVES" and what == "AWARD" then
-      msg = string.format(L["%d AuxStanding awarded to Reserves."],amount)
     elseif who == "GuildRollVERSION" then
       local out_of_date, version_type = self:parseVersion(self._versionString,what)
       if (out_of_date) and self._newVersionNotification == nil then
@@ -1010,23 +1002,6 @@ function GuildRoll:award_raid_gp(gp) -- awards gp to raid members in zone
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
 end
 
-function GuildRoll:award_reserve_ep(ep) -- awards ep to reserve list
-  if table.getn(GuildRoll.reserves) > 0 then
-	local award = {}
-    for i, reserve in ipairs(GuildRoll.reserves) do
-      local name, class, rank, alt = unpack(reserve)
-		local _,mName =  self:givename_ep(name,ep,award)
-		 table.insert (award, mName)
-    end
-    self:simpleSay(string.format(L["Giving %d MainStanding to active reserves"],ep))
-    self:addToLog(string.format(L["Giving %d MainStanding to active reserves"],ep))
-    local addonMsg = string.format("RESERVES;AWARD;%s",ep)
-    self:addonMessage(addonMsg,"GUILD")
-    GuildRoll.reserves = {}
-    reserves_blacklist = {}
-    self:refreshPRTablets()
-  end
-end
 function GuildRoll:givename_ep(getname,ep) 
 	
  return GuildRoll:givename_ep(getname,ep,nil)  
@@ -1209,7 +1184,7 @@ GuildRoll.independentProfile = true
 function GuildRoll:OnTooltipUpdate()
   local hint = L["|cffffff00Click|r to toggle Standings.%s \n|cffffff00Right-Click|r for Options."]
   if (admin()) then
-    hint = string.format(hint,L[" \n|cffffff00Ctrl+Click|r to toggle Reserves. \n|cffffff00Alt+Click|r to toggle Bids. \n|cffffff00Shift+Click|r to toggle Loot. \n|cffffff00Ctrl+Alt+Click|r to toggle Alts. \n|cffffff00Ctrl+Shift+Click|r to toggle Logs."])
+    hint = string.format(hint,L[" \n|cffffff00Alt+Click|r to toggle Bids. \n|cffffff00Shift+Click|r to toggle Loot. \n|cffffff00Ctrl+Alt+Click|r to toggle Alts. \n|cffffff00Ctrl+Shift+Click|r to toggle Logs."])
   else
     hint = string.format(hint,"")
   end
@@ -1222,8 +1197,6 @@ function GuildRoll:OnClick()
     GuildRoll_logs:Toggle()
   elseif (IsControlKeyDown() and IsAltKeyDown() and is_admin) then
     GuildRollAlts:Toggle()
-  elseif (IsControlKeyDown() and is_admin) then
-    GuildRoll_reserves:Toggle()
   elseif (IsShiftKeyDown() and is_admin) then
    -- GuildRoll_loot:Toggle()      
   elseif (IsAltKeyDown() and is_admin) then
@@ -1349,125 +1322,6 @@ function GuildRoll:parseAlt(name,officernote)
   return nil
 end
 
-
----------------
--- Reserves
----------------
-function GuildRoll:reservesToggle(flag)
-  local reservesChannelID = tonumber((GetChannelName(GuildRoll_reservechannel)))
-  if (flag) then -- we want in
-    if (reservesChannelID) and reservesChannelID ~= 0 then
-      GuildRoll.reservesChannelID = reservesChannelID
-      if not self:IsEventRegistered("CHAT_MSG_CHANNEL") then
-        self:RegisterEvent("CHAT_MSG_CHANNEL","captureReserveChatter")
-      end
-      return true
-    else
-      self:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE","reservesChannelChange")
-      JoinChannelByName(GuildRoll_reservechannel)
-      return
-    end
-  else -- we want out
-    if (reservesChannelID) and reservesChannelID ~= 0 then
-      self:RegisterEvent("CHAT_MSG_CHANNEL_NOTICE","reservesChannelChange")
-      LeaveChannelByName(GuildRoll_reservechannel)
-      return
-    else
-      if self:IsEventRegistered("CHAT_MSG_CHANNEL") then
-        self:UnregisterEvent("CHAT_MSG_CHANNEL")
-      end      
-      return false
-    end
-  end
-end
-
-function GuildRoll:reservesChannelChange(msg,_,_,_,_,_,_,_,channel)
-  if (msg) and (channel) and (channel == GuildRoll_reservechannel) then
-    if msg == "YOU_JOINED" then
-      GuildRoll.reservesChannelID = tonumber((GetChannelName(GuildRoll_reservechannel)))
-      RemoveChatWindowChannel(DEFAULT_CHAT_FRAME:GetID(), GuildRoll_reservechannel)
-      self:RegisterEvent("CHAT_MSG_CHANNEL","captureReserveChatter")
-    elseif msg == "YOU_LEFT" then
-      GuildRoll.reservesChannelID = nil 
-      if self:IsEventRegistered("CHAT_MSG_CHANNEL") then
-        self:UnregisterEvent("CHAT_MSG_CHANNEL")
-      end
-    end
-    self:UnregisterEvent("CHAT_MSG_CHANNEL_NOTICE")
-    D:Close()
-  end
-end
-
-function GuildRoll:afkcheck_reserves()
-  if (running_check) then return end
-  if GuildRoll.reservesChannelID ~= nil and ((GetChannelName(GuildRoll.reservesChannelID)) == GuildRoll.reservesChannelID) then
-    reserves_blacklist = {}
-    GuildRoll.reserves = {}
-    running_check = true
-    GuildRoll.timer.count_down = GuildRoll.VARS.timeout
-    GuildRoll.timer:Show()
-    SendChatMessage(GuildRoll.VARS.reservecall,"CHANNEL",nil,GuildRoll.reservesChannelID)
-    GuildRoll_reserves:Toggle(true)
-  end
-end
-
-function GuildRoll:sendReserverResponce()
-  if GuildRoll.reservesChannelID ~= nil then
-    if (GuildRoll_main) then
-      if GuildRoll_main == self._playerName then
-        SendChatMessage("+","CHANNEL",nil,GuildRoll.reservesChannelID)
-      else
-        SendChatMessage(string.format("+%s",GuildRoll_main),"CHANNEL",nil,GuildRoll.reservesChannelID)
-      end
-    end
-  end
-end
-
-function GuildRoll:captureReserveChatter(text, sender, _, _, _, _, _, _, channel)
-  if not (channel) or not (channel == GuildRoll_reservechannel) then return end
-  local reserve, reserve_class, reserve_rank, reserve_alt = nil,nil,nil,nil
-  local r,_,rdy,name = string.find(text,GuildRoll.VARS.reserveanswer)
-  if (r) and (running_check) then
-    if (rdy) then
-      if (name) and (name ~= "") then
-        if (not self:inRaid(name)) then
-          reserve, reserve_class, reserve_rank = self:verifyGuildMember(name)
-          if reserve ~= sender then
-            reserve_alt = sender
-          end
-        end
-      else
-        if (not self:inRaid(sender)) then
-          reserve, reserve_class, reserve_rank = self:verifyGuildMember(sender)    
-        end
-      end
-      if reserve and reserve_class and reserve_rank then
-        if reserve_alt then
-          if not reserves_blacklist[reserve_alt] then
-            reserves_blacklist[reserve_alt] = true
-            table.insert(GuildRoll.reserves,{reserve,reserve_class,reserve_rank,reserve_alt})
-          else
-            self:defaultPrint(string.format(L["|cffff0000%s|r trying to add %s to Reserves, but has already added a member. Discarding!"],reserve_alt,reserve))
-          end
-        else
-          if not reserves_blacklist[reserve] then
-            reserves_blacklist[reserve] = true
-            table.insert(GuildRoll.reserves,{reserve,reserve_class,reserve_rank})
-          else
-            self:defaultPrint(string.format(L["|cffff0000%s|r has already been added to Reserves. Discarding!"],reserve))
-          end
-        end
-      end
-    end
-    return
-  end
-  local q = string.find(text,L["^{guildroll}Type"])
-  if (q) and not (running_check) then
-    if --[[(not UnitInRaid("player")) or]] (not self:inRaid(sender)) then
-      StaticPopup_Show("RET_EP_RESERVE_AFKCHECK_RESPONCE")
-    end
-  end
-end
 
 ------------
 -- Logging
@@ -1749,31 +1603,6 @@ StaticPopupDialogs["RET_EP_SET_MAIN"] = {
   end,
   timeout = 0,
   exclusive = 1,
-  whileDead = 1,
-  hideOnEscape = 1  
-}
-StaticPopupDialogs["RET_EP_RESERVE_AFKCHECK_RESPONCE"] = {
-  text = " ",
-  button1 = TEXT(YES),
-  button2 = TEXT(NO),
-  OnShow = function()
-    this._timeout = GuildRoll.VARS.timeout-1
-  end,
-  OnUpdate = function(elapsed,dialog)
-    this._timeout = this._timeout - elapsed
-    getglobal(dialog:GetName().."Text"):SetText(string.format(L["Reserves AFKCheck. Are you available? |cff00ff00%0d|rsec."],this._timeout))
-    if (this._timeout<=0) then
-      this._timeout = 0
-      dialog:Hide()
-    end
-  end,
-  OnAccept = function()
-    this._timeout = 0
-    GuildRoll:sendReserverResponce()
-  end,
-  timeout = 0,--GuildRoll.VARS.timeout,
-  exclusive = 1,
-  showAlert = 1,
   whileDead = 1,
   hideOnEscape = 1  
 }
@@ -2162,5 +1991,5 @@ end
 
 
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_reservechannel,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_looted,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
--- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRoll_reserves,GuildRollAlts,GuildRoll_logs,GuildRoll_pugCache
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_looted,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
+-- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs,GuildRoll_pugCache
