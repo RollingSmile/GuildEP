@@ -792,7 +792,7 @@ function RetRoll:addonComms(prefix,message,channel,sender)
     local msg
     local for_main = (RetRoll_main and (who == RetRoll_main))
     if (who == self._playerName) or (for_main) then
-      if what == "MainStanding" then
+      if what == "MainStanding" or what == "EffortPoints" then
         if amount < 0 then
           msg = string.format(L["You have received a %d MainStanding penalty."],amount)
         else
@@ -1002,53 +1002,53 @@ function RetRoll:get_gp_v3(getname,officernote) -- gets gp by name or officernot
   return
 end
 
-function RetRoll:award_raid_ep(ep) -- awards ep to raid members in zone
+function RetRoll:award_raid_ep(ep) -- awards ep to raid members in zone (unified to use EP)
   if GetNumRaidMembers()>0 then
 	local award = {}
     for i = 1, GetNumRaidMembers(true) do
       local name, rank, subgroup, level, class, fileName, zone, online, isDead = GetRaidRosterInfo(i)
       if level >= RetRoll.VARS.minlevel then
-		local _,mName =  self:givename_ep(name,ep,award)
-		 table.insert (award, mName)
+		local _,mName = self:awardEP(name, ep, award)
+		table.insert(award, mName)
       end
     end
-    self:simpleSay(string.format(L["Giving %d MainStanding to all raidmembers"],ep))
-    self:addToLog(string.format(L["Giving %d MainStanding to all raidmembers"],ep))    
-    local addonMsg = string.format("RAID;AWARD;%s",ep)
-    self:addonMessage(addonMsg,"RAID")
+    self:simpleSay(string.format(L["Giving %d EffortPoints to all raidmembers"], ep))
+    self:addToLog(string.format(L["Giving %d EffortPoints to all raidmembers"], ep))    
+    local addonMsg = string.format("RAID;AWARD;%s", ep)
+    self:addonMessage(addonMsg, "RAID")
     self:refreshPRTablets() 
-  else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
+  else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"], 1, 0, 0) end
 end
-function RetRoll:award_raid_gp(gp) -- awards gp to raid members in zone
+function RetRoll:award_raid_gp(gp) -- awards EP to raid members (formerly AuxStanding, now unified as EP)
   if GetNumRaidMembers()>0 then
 	local award = {}
     for i = 1, GetNumRaidMembers(true) do
       local name, rank, subgroup, level, class, fileName, zone, online, isDead = GetRaidRosterInfo(i)
       if level >= RetRoll.VARS.minlevel then
-		local _,mName =  self:givename_gp(name,gp,award)
-		 table.insert (award, mName)
+		local _,mName = self:awardEP(name, gp, award)
+		table.insert(award, mName)
       end
     end
-    self:simpleSay(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))
-    self:addToLog(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))    
-    local addonMsg = string.format("RAID;AWARDGP;%s",gp)
-    self:addonMessage(addonMsg,"RAID")
+    self:simpleSay(string.format(L["Giving %d EffortPoints to all raidmembers"], gp))
+    self:addToLog(string.format(L["Giving %d EffortPoints to all raidmembers"], gp))    
+    local addonMsg = string.format("RAID;AWARDGP;%s", gp)
+    self:addonMessage(addonMsg, "RAID")
     self:refreshPRTablets() 
-  else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
+  else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"], 1, 0, 0) end
 end
 
-function RetRoll:award_reserve_ep(ep) -- awards ep to reserve list
+function RetRoll:award_reserve_ep(ep) -- awards ep to reserve list (unified to use EP)
   if table.getn(RetRoll.reserves) > 0 then
 	local award = {}
     for i, reserve in ipairs(RetRoll.reserves) do
       local name, class, rank, alt = unpack(reserve)
-		local _,mName =  self:givename_ep(name,ep,award)
-		 table.insert (award, mName)
+		local _,mName = self:awardEP(name, ep, award)
+		table.insert(award, mName)
     end
-    self:simpleSay(string.format(L["Giving %d MainStanding to active reserves"],ep))
-    self:addToLog(string.format(L["Giving %d MainStanding to active reserves"],ep))
-    local addonMsg = string.format("RESERVES;AWARD;%s",ep)
-    self:addonMessage(addonMsg,"GUILD")
+    self:simpleSay(string.format(L["Giving %d EffortPoints to active reserves"], ep))
+    self:addToLog(string.format(L["Giving %d EffortPoints to active reserves"], ep))
+    local addonMsg = string.format("RESERVES;AWARD;%s", ep)
+    self:addonMessage(addonMsg, "GUILD")
     RetRoll.reserves = {}
     reserves_blacklist = {}
     self:refreshPRTablets()
@@ -1390,10 +1390,10 @@ function RetRoll:buildClassMemberTable(roster,epgp)
       c[class].args[name].usage = usage
       if epgp == "MainStanding" then
         c[class].args[name].get = "suggestedAwardMainStanding"
-        c[class].args[name].set = function(v) RetRoll:givename_ep(name, tonumber(v)) RetRoll:refreshPRTablets() end
+        c[class].args[name].set = function(v) RetRoll:awardEP(name, tonumber(v)) RetRoll:refreshPRTablets() end
       elseif epgp == "AuxStanding" then
         c[class].args[name].get = false
-        c[class].args[name].set = function(v) RetRoll:givename_gp(name, tonumber(v)) RetRoll:refreshPRTablets() end
+        c[class].args[name].set = function(v) RetRoll:awardEP(name, tonumber(v)) RetRoll:refreshPRTablets() end
       end
       c[class].args[name].validate = function(v) return (type(v) == "number" or tonumber(v)) and tonumber(v) < RetRoll.VARS.max end
     end
