@@ -1623,6 +1623,10 @@ StaticPopupDialogs["GUILDROLL_AWARD_EP_RAID_HELP"] = {
       GuildRoll:defaultPrint("Invalid EP value entered.")
       return
     end
+    if epValue < 0 or epValue >= GuildRoll.VARS.max then
+      GuildRoll:defaultPrint("EP value must be between 0 and " .. GuildRoll.VARS.max)
+      return
+    end
     if not (IsGuildLeader() or CanEditOfficerNote()) then
       GuildRoll:defaultPrint("You don't have permission to award EP.")
       return
@@ -1633,7 +1637,7 @@ StaticPopupDialogs["GUILDROLL_AWARD_EP_RAID_HELP"] = {
     local parent = this:GetParent()
     local editBox = getglobal(parent:GetName().."EditBox")
     local epValue = tonumber(editBox:GetText())
-    if epValue and (IsGuildLeader() or CanEditOfficerNote()) then
+    if epValue and epValue >= 0 and epValue < GuildRoll.VARS.max and (IsGuildLeader() or CanEditOfficerNote()) then
       GuildRoll:award_raid_ep(epValue)
       parent:Hide()
     end
