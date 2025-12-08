@@ -24,7 +24,7 @@ local function ExecuteCommand(command)
         end
     elseif command == "roll csr" then
         -- Use static popup dialog to input CSR weeks (0..15) and validate
-        StaticPopupDialogs["RET_CSR_INPUT"] = {
+        StaticPopupDialogs["CSR_INPUT"] = {
             text = "Enter number of weeks you SR this item (0..15):",
             button1 = TEXT(ACCEPT),
             button2 = TEXT(CANCEL),
@@ -79,7 +79,7 @@ local function ExecuteCommand(command)
             whileDead = 1,
             hideOnEscape = 1,
         }
-        StaticPopup_Show("RET_CSR_INPUT")
+        StaticPopup_Show("CSR_INPUT")
     elseif command == "show ep" then
         if GuildRoll_standings and GuildRoll_standings.Toggle then
             GuildRoll_standings:Toggle()
@@ -164,33 +164,54 @@ local function CreateRollButton(name, parent, command, anchor, width, font)
     return buttonFrame
 end
 
--- Helper: get player's rankIndex (0 = Guild Master, 1 = Officer, 2 = Veteran, 3 = Core Raider, ...)
-local function GetPlayerRankIndex()
-    if not IsInGuild() then return nil end
+-- Helper: get player's rank index and rank name (returns rankIndex, rankName)
+local function GetPlayerRankInfo()
+    if not IsInGuild() then return nil, nil end
     if GuildRoster then
         pcall(GuildRoster) -- request update (non-blocking)
     end
     local okNum, num = pcall(function() return GetNumGuildMembers(true) end)
     num = (okNum and num) and num or 0
-    if num <= 0 then return nil end
+    if num <= 0 then return nil, nil end
     local playerName = UnitName("player")
     for i = 1, num do
         local ok, name, rankName, rankIndex = pcall(function() return GetGuildRosterInfo(i) end)
         if ok and name then
             local simpleName = string.match(name, "^[^-]+") or name
             if simpleName == playerName then
-                return rankIndex
+                return rankIndex, rankName
             end
         end
     end
-    return nil
+    return nil, nil
 end
 
--- Determine if current player may see CSR button: indices 0..3 allowed (Guild master, Officer, Veteran, Core Raider)
+-- Determine if current player may see CSR button:
+-- prefer explicit API checks (IsGuildLeader/IsGuildOfficer), then legacy rankIndex cutoff,
+-- then fall back to searching rankName for "offic" (covers common localized names).
 local function CanSeeCSR()
-    local rankIndex = GetPlayerRankIndex()
-    if not rankIndex then return false end
-    return rankIndex <= 3
+    if not IsInGuild() then return false end
+
+    if IsGuildLeader and IsGuildLeader() then
+        return true
+    end
+    if IsGuildOfficer and IsGuildOfficer() then
+        return true
+    end
+
+    local rankIndex, rankName = GetPlayerRankInfo()
+    if rankIndex and rankIndex <= 3 then
+        return true
+    end
+
+    if rankName and type(rankName) == "string" then
+        local rn = string.lower(rankName)
+        if string.find(rn, "offic") then
+            return true
+        end
+    end
+
+    return false
 end
 
 -- Build options list lazily: EP-aware options + CSR (if permitted) + numeric legacy rolls + standings
