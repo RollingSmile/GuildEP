@@ -269,9 +269,9 @@ function RetRoll:sf(fmt, ...)
     fmt = ""
   end
   
-  -- Normalize numeric format specifiers to %s to avoid type errors with nil
-  -- Matches format specifiers like %d, %5d, %-10.2f, etc.
-  fmt = string.gsub(fmt, "%%%-?%d*%.?%d*[dif]", "%%s")
+  -- Normalize numeric/char format specifiers to %s to avoid type errors with nil
+  -- Matches format specifiers like %d, %-10.2f, %5d, %x, %o, etc.
+  fmt = string.gsub(fmt, "%%[%-#+ 0]*%d*%.?%d*[diouxXeEfFgGaAc]", "%%s")
   
   -- Convert all arguments, replacing nil with "" and applying tostring
   local args = {...}
@@ -1039,7 +1039,7 @@ function RetRoll:award_raid_ep(ep) -- awards ep to raid members in zone
     end
     self:simpleSay(self:sf(L["Giving %d MainStanding to all raidmembers"], ep))
     self:addToLog(self:sf(L["Giving %d MainStanding to all raidmembers"], ep))    
-    local addonMsg = string.format("RAID;AWARD;%s", tostring(ep or 0))
+    local addonMsg = self:sf("RAID;AWARD;%s", ep)
     self:addonMessage(addonMsg,"RAID")
     self:refreshPRTablets() 
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
@@ -1056,7 +1056,7 @@ function RetRoll:award_raid_gp(gp) -- awards gp to raid members in zone
     end
     self:simpleSay(self:sf(L["Giving %d AuxStanding to all raidmembers"], gp))
     self:addToLog(self:sf(L["Giving %d AuxStanding to all raidmembers"], gp))    
-    local addonMsg = string.format("RAID;AWARDGP;%s", tostring(gp or 0))
+    local addonMsg = self:sf("RAID;AWARDGP;%s", gp)
     self:addonMessage(addonMsg,"RAID")
     self:refreshPRTablets() 
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
@@ -1072,7 +1072,7 @@ function RetRoll:award_reserve_ep(ep) -- awards ep to reserve list
     end
     self:simpleSay(self:sf(L["Giving %d MainStanding to active reserves"], ep))
     self:addToLog(self:sf(L["Giving %d MainStanding to active reserves"], ep))
-    local addonMsg = string.format("RESERVES;AWARD;%s", tostring(ep or 0))
+    local addonMsg = self:sf("RESERVES;AWARD;%s", ep)
     self:addonMessage(addonMsg,"GUILD")
     RetRoll.reserves = {}
     reserves_blacklist = {}
@@ -1189,7 +1189,7 @@ function RetRoll:decay_epgp_v3()
   local msg = self:sf(L["All Standing decayed by %s%%"], (1-RetRoll_decay)*100)
   self:simpleSay(msg)
   if not (RetRoll_saychannel=="OFFICER") then self:adminSay(msg) end
-  local addonMsg = string.format("ALL;DECAY;%s", tostring((1-(RetRoll_decay or RetRoll.VARS.decay))*100))
+  local addonMsg = self:sf("ALL;DECAY;%s", (1-(RetRoll_decay or RetRoll.VARS.decay))*100)
   self:addonMessage(addonMsg,"GUILD")
   self:addToLog(msg)
   self:refreshPRTablets() 
