@@ -289,11 +289,13 @@ end)
 function GuildRoll:RebuildRollOptions()
     -- Clear existing option widgets
     if rollOptionsFrame then
-        for i = rollOptionsFrame:GetNumChildren(), 1, -1 do
-            local child = select(i, rollOptionsFrame:GetChildren())
+        -- Use GetChildren() into a table so we don't rely on the global select()
+        local children = { rollOptionsFrame:GetChildren() }
+        for _, child in ipairs(children) do
             if child then
-                child:Hide()
-                child:SetParent(nil)
+                -- hide and detach the child frame safely
+                if child.Hide then child:Hide() end
+                if child.SetParent then child:SetParent(nil) end
             end
         end
     end
