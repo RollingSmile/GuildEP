@@ -723,7 +723,7 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
     elseif who == "RAID" and what == "AWARD" then
       msg = string.format(L["%d MainStanding awarded to Raid."],amount)
     elseif who == "RAID" and what == "AWARDAuxStanding" then
-      msg = string.format(L["%d EP awarded to Raid."],amount)
+      msg = string.format(L["%d MainStanding awarded to Raid."],amount)
     elseif who == "GuildRollVERSION" then
       local out_of_date, version_type = self:parseVersion(self._versionString,what)
       if (out_of_date) and self._newVersionNotification == nil then
