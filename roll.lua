@@ -292,7 +292,9 @@ function GuildRoll:RebuildRollOptions()
         -- Avoid using global select() (some environment may have overwritten it).
         -- Collect children into a table, then index it directly.
         local children = { rollOptionsFrame:GetChildren() }
-        for i = #children, 1, -1 do
+        -- Use table.getn for compatibility with older Lua versions used in some WoW clients
+        local n = table.getn(children)
+        for i = n, 1, -1 do
             local child = children[i]
             if child then
                 child:Hide()
