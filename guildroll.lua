@@ -1003,7 +1003,7 @@ end
 function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
   -- Validate input
   if type(ep) ~= "number" then
-    UIErrorsFrame:AddMessage("Invalid EP value: not a number", 1.0, 0.0, 0.0, 1.0)
+    UIErrorsFrame:AddMessage("Invalid EP value entered.", 1.0, 0.0, 0.0, 1.0)
     return
   end
   if ep < GuildRoll.VARS.minAward or ep > GuildRoll.VARS.maxAward then
@@ -1030,7 +1030,7 @@ end
 function GuildRoll:award_raid_gp(gp) -- awards gp to raid members in zone
   -- Validate input
   if type(gp) ~= "number" then
-    UIErrorsFrame:AddMessage("Invalid GP value: not a number", 1.0, 0.0, 0.0, 1.0)
+    UIErrorsFrame:AddMessage("Invalid GP value entered.", 1.0, 0.0, 0.0, 1.0)
     return
   end
   if gp < GuildRoll.VARS.minAward or gp > GuildRoll.VARS.maxAward then
@@ -1073,7 +1073,7 @@ function GuildRoll:givename_ep(getname,ep,block) -- awards ep to a single charac
 
   -- Validate EP value
   if type(ep) ~= "number" then
-    self:defaultPrint("Invalid EP value")
+    self:defaultPrint("Invalid EP value entered.")
     return false, getname
   end
   if ep < GuildRoll.VARS.minAward or ep > GuildRoll.VARS.maxAward then
@@ -1133,7 +1133,7 @@ function GuildRoll:givename_gp(getname,gp,block) -- awards gp to a single charac
 
   -- Validate GP value
   if type(gp) ~= "number" then
-    self:defaultPrint("Invalid GP value")
+    self:defaultPrint("Invalid GP value entered.")
     return false, getname
   end
   if gp < GuildRoll.VARS.minAward or gp > GuildRoll.VARS.maxAward then
