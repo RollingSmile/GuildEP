@@ -1557,10 +1557,11 @@ function GuildRoll:_migratePublicMainTagsProcess()
         -- Remove existing main-like tags from officer note
         newOfficerNote, officerChanged = self:removeExistingMainLikeTags(newOfficerNote)
         
-        -- Add the new main-like tags to officer note (last one wins if multiple)
+        -- Prepend the new main-like tags to officer note (at the beginning, before EP:GP)
+        -- Last one wins if multiple, and it will be prepended first
         for _, tag in ipairs(mainLikeTags) do
           if not self:noteHasTag(newOfficerNote, tag) then
-            newOfficerNote = self:addTagToNote(newOfficerNote, tag)
+            newOfficerNote = self:prependTagToNote(newOfficerNote, tag)
             officerChanged = true
           end
         end
@@ -1709,6 +1710,25 @@ function GuildRoll:addTagToNote(note, tag)
     newNote = newNote .. " "
   end
   newNote = newNote .. "{" .. tag .. "}"
+  return newNote
+end
+
+-- Prepend a tag to the beginning of a note (avoiding duplicates)
+-- Used for migration to ensure main tags appear before EP:GP tags
+function GuildRoll:prependTagToNote(note, tag)
+  if not tag or tag == "" then return note end
+  note = note or ""
+  
+  -- Check if tag already exists
+  if self:noteHasTag(note, tag) then
+    return note
+  end
+  
+  -- Prepend tag at the beginning
+  local newNote = "{" .. tag .. "}"
+  if note ~= "" then
+    newNote = newNote .. note
+  end
   return newNote
 end
 
