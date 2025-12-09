@@ -388,7 +388,6 @@ function GuildRoll:OnInitialize() -- ADDON_LOADED (1) unless LoD
   if GuildRoll_log == nil then GuildRoll_log = {} end
   if GuildRoll_looted == nil then GuildRoll_looted = {} end
   if GuildRoll_debug == nil then GuildRoll_debug = {} end
-  if GuildRoll_pugCache == nil then GuildRoll_pugCache = {} end 
   --if GuildRoll_showRollWindow == nil then GuildRoll_showRollWindow = true end
   self:RegisterDB("GuildRoll_fubar")
   self:RegisterDefaults("char",{})
@@ -961,21 +960,18 @@ function GuildRoll:PromptAwardRaidEP()
   StaticPopup_Show("GUILDROLL_AWARD_EP_RAID_HELP")
 end
 
-function GuildRoll:givename_ep(getname,ep) 
-	
- return GuildRoll:givename_ep(getname,ep,nil)  
+function GuildRoll:givename_ep(getname,ep)
+  return GuildRoll:givename_ep(getname,ep,nil)
 end
+
 function GuildRoll:givename_ep(getname,ep,block) -- awards ep to a single character
   if not (admin()) then return end
-  local isPug, playerNameInGuild = self:isPug(getname)
+
+  -- PUG support removed: do not call self:isPug
   local postfix, alt = ""
-  if isPug then
-    -- Update MainStanding for the level 1 character in the guild
-    alt = getname
-    getname = playerNameInGuild
-    ep = self:num_round(GuildRoll_altpercent*ep)
-    postfix = string.format(", %s\'s Pug MainStanding Bank.",alt)
-  elseif (GuildRollAltspool) then
+
+  -- Keep alt -> main handling if Altspool is enabled
+  if (GuildRollAltspool) then
     local main = self:parseAlt(getname)
     if (main) then
       alt = getname
@@ -984,27 +980,23 @@ function GuildRoll:givename_ep(getname,ep,block) -- awards ep to a single charac
       postfix = string.format(L[", %s\'s Main."],alt)
     end
   end
+
   if GuildRoll:TFind(block, getname) then
-		self:debugPrint(string.format("Skipping %s, already awarded.",getname)) 
-		return isPug, getname 
+    self:debugPrint(string.format("Skipping %s, already awarded.",getname))
+    return false, getname
   end
-  local old =  (self:get_ep_v3(getname) or 0) 
-  local newep = ep +old
-  self:update_ep_v3(getname,newep) 
+  local old =  (self:get_ep_v3(getname) or 0)
+  local newep = ep + old
+  self:update_ep_v3(getname,newep)
   self:debugPrint(string.format(L["Giving %d MainStanding to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep))
-  if ep < 0 then -- inform admins and victim of penalties
+  if ep < 0 then
     local msg = string.format(L["%s MainStanding Penalty to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
     self:adminSay(msg)
     self:addToLog(msg)
     local addonMsg = string.format("%s;%s;%s",getname,"MainStanding",ep)
     self:addonMessage(addonMsg,"GUILD")
-  end  
-  return isPug, getname
-end
-
-
-function GuildRoll:givename_gp(getname,gp) 
- return GuildRoll:givename_gp(getname,gp,nil) 
+  end
+  return false, getname
 end
 
 
@@ -1018,17 +1010,18 @@ if not t then return nil end
 return nil
 end
 
+function GuildRoll:givename_gp(getname,gp)
+  return GuildRoll:givename_gp(getname,gp,nil)
+end
+
 function GuildRoll:givename_gp(getname,gp,block) -- awards gp to a single character
   if not (IsGuildLeader()) then return end
-  local isPug, playerNameInGuild = self:isPug(getname)
+
+  -- PUG support removed: do not call self:isPug
   local postfix, alt = ""
-  if isPug then
-    -- Update gp for the level 1 character in the guild
-    alt = getname
-    getname = playerNameInGuild
-    gp = self:num_round(GuildRoll_altpercent*gp)
-    postfix = string.format(", %s\'s Pug MainStanding Bank.",alt)
-  elseif (GuildRollAltspool) then
+
+  -- Keep alt -> main handling if Altspool is enabled
+  if (GuildRollAltspool) then
     local main = self:parseAlt(getname)
     if (main) then
       alt = getname
@@ -1036,24 +1029,25 @@ function GuildRoll:givename_gp(getname,gp,block) -- awards gp to a single charac
       gp = self:num_round(GuildRoll_altpercent*gp)
       postfix = string.format(L[", %s\'s Main."],alt)
     end
-  end 
-	if GuildRoll:TFind (block, getname) then
-		self:debugPrint(string.format("Skipping %s%s, already awarded.",getname,postfix)) 
-		return isPug, getname
-	end
- 
-  local old = (self:get_gp_v3(getname) or 0) 
+  end
+
+  if GuildRoll:TFind(block, getname) then
+    self:debugPrint(string.format("Skipping %s%s, already awarded.",getname,postfix))
+    return false, getname
+  end
+
+  local old =  (self:get_gp_v3(getname) or 0)
   local newgp = gp + old
-  self:update_gp_v3(getname,newgp) 
-  self:debugPrint(string.format(L["Giving %d AuxStanding to %s%s. (Previous: %d, New: %d)"],gp,getname,postfix,old, newgp))
-  if gp < 0 then -- inform admins and victim of penalties
-    local msg = string.format(L["%s AuxStanding Penalty to %s%s. (Previous: %d, New: %d)"],gp,getname,postfix,old, newgp)
+  self:update_gp_v3(getname,newgp)
+  self:debugPrint(string.format(L["Giving %d AuxStanding to %s%s. (Previous: %d, New: %d)"],gp,getname,postfix,old,newgp))
+  if gp < 0 then
+    local msg = string.format(L["%s AuxStanding Penalty to %s%s. (Previous: %d, New: %d)"],gp,getname,postfix,old,newgp)
     self:adminSay(msg)
     self:addToLog(msg)
     local addonMsg = string.format("%s;%s;%s",getname,"AuxStanding",gp)
     self:addonMessage(addonMsg,"GUILD")
-  end  
-  return isPug, getname
+  end
+  return false, getname
 end
 
 
@@ -1958,4 +1952,4 @@ function GuildRollMSG:OnCHAT_MSG_ADDON( prefix, text, channel, sender)
 end
 
 -- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_looted,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
--- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs,GuildRoll_pugCache
+-- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs
