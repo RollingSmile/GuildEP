@@ -363,7 +363,7 @@ function GuildRoll:buildMenu()
     -- desc = string.format(L["Resets everyone\'s AuxStanding to 0/%d (Admin only)."],GuildRoll.VARS.baseAE),
     -- order = 122,
     -- hidden = function() return not (IsGuildLeader()) end,
-    -- func = function() StaticPopup_Show("RET_GP_CONFIRM_RESET") end
+    -- func = function() StaticPopup_Show("RET_EP_CONFIRM_RESET") end
     -- }
 
   end
@@ -723,7 +723,7 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
     elseif who == "RAID" and what == "AWARD" then
       msg = string.format(L["%d MainStanding awarded to Raid."],amount)
     elseif who == "RAID" and what == "AWARDAuxStanding" then
-      msg = string.format(L["%d MainStanding awarded to Raid."],amount)
+      msg = string.format(L["%d EP awarded to Raid."],amount)
     elseif who == "GuildRollVERSION" then
       local out_of_date, version_type = self:parseVersion(self._versionString,what)
       if (out_of_date) and self._newVersionNotification == nil then
@@ -947,7 +947,7 @@ function GuildRoll:award_raid_gp(gp) -- awards gp to raid members in zone
     end
     self:simpleSay(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))
     self:addToLog(string.format(L["Giving %d AuxStanding to all raidmembers"],gp))    
-    local addonMsg = string.format("RAID;AWARDGP;%s",gp)
+    local addonMsg = string.format("RAID;AWARDEP;%s",gp)
     self:addonMessage(addonMsg,"RAID")
     self:refreshPRTablets() 
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
@@ -1221,7 +1221,7 @@ function GuildRoll:buildClassMemberTable(roster,epgp)
     usage = "<EP>"
   elseif epgp == "AuxStanding" then
     desc = L["Account AuxStanding to %s."]
-    usage = "<GP>"
+    usage = "<EP>"
   end
   local c = { }
   for i,member in ipairs(roster) do
@@ -1578,7 +1578,7 @@ StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
   showAlert = 1,
   hideOnEscape = 1
 }
-StaticPopupDialogs["RET_GP_CONFIRM_RESET"] = {
+StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
   text = L["|cffff0000Are you sure you want to Reset ALL AuxStanding?|r"],
   button1 = TEXT(OKAY),
   button2 = TEXT(CANCEL),
@@ -1693,7 +1693,7 @@ function GuildRoll:GetRollingGP(gp)
     return math.max(-1 * GuildRoll.VARS.AERollCap , math.min(GuildRoll.VARS.AERollCap,gp) )
 end
 -- Returns the base roll value for the player.
--- Now returns only EP (MainStanding). GP (AuxStanding) is no longer included in roll calculations.
+-- Now returns only EP (MainStanding). EP (AuxStanding) is no longer included in roll calculations.
 function GuildRoll:GetBaseRollValue(ep,gp)
 
     return  ep
