@@ -91,24 +91,24 @@ guildep_export.scroll:SetScrollChild(guildep_export.edit)
 GuildRoll:make_escable("guildep_exportframe","add")
 
 function GuildRoll_standings:Export()
+  if not admin() then return end
   guildep_export.action:Hide()
   guildep_export.title:SetText(C:Gold(L["Ctrl-C to copy. Esc to close."]))
   local t = {}
   for i = 1, GetNumGuildMembers(1) do
     local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
     local ep = (GuildRoll:get_ep_v3(name,officernote) or 0) 
-    local gp = (GuildRoll:get_gp_v3(name,officernote) or GuildRoll.VARS.baseAE) 
     if ep > 0 then
-      table.insert(t,{name,ep,gp,ep+math.min(50,gp)})
+      table.insert(t,{name,ep})
     end
   end 
   table.sort(t, function(a,b)
-      return tonumber(a[4]) > tonumber(b[4])
+      return tonumber(a[2]) > tonumber(b[2])
     end)
   guildep_export:Show()
-  local txt = "Name;EP;GP;PR\n"
+  local txt = "Name;EP\n"
   for i,val in ipairs(t) do
-    txt = string.format("%s%s;%d;%d;%d\n",txt,val[1],val[2],val[3],val[4])
+    txt = string.format("%s%s;%d\n",txt,val[1],val[2])
   end
   guildep_export.AddSelectText(txt)
 end
@@ -209,11 +209,13 @@ function GuildRoll_standings:OnEnable()
           "tooltipText", L["Refresh window"],
           "func", function() GuildRoll_standings:Refresh() end
         )
-        D:AddLine(
-          "text", L["Export"],
-          "tooltipText", L["Export standings to csv."],
-          "func", function() GuildRoll_standings:Export() end
-        )
+        if admin() then
+          D:AddLine(
+            "text", L["Export"],
+            "tooltipText", L["Export standings to csv."],
+            "func", function() GuildRoll_standings:Export() end
+          )
+        end
         if IsGuildLeader() then
           D:AddLine(
           "text", L["Import"],
