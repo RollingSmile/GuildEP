@@ -129,9 +129,15 @@ function GuildRoll_standings.import()
   local found
   for line in string.gfind(text,"[^\r\n]+") do
     local name,ep,gp,pr = GuildRoll:strsplit(";",line)
-    ep,gp = tonumber(ep),tonumber(gp)--,tonumber(pr)
-    if (name) and (ep) and (gp) and (pr) then
-      t[name]={ep,gp}
+    -- Convert to numbers
+    ep = tonumber(ep)
+    gp = tonumber(gp)
+    pr = tonumber(pr)
+    
+    -- Skip header lines and lines without at least name+EP
+    if (name) and (ep) and not string.find(name, "^Name") then
+      -- Support both 2-column (Name;EP) and 4-column (Name;EP;GP;PR) formats
+      t[name]={ep=ep, gp=gp}
       found = true
     end
   end
@@ -143,8 +149,16 @@ function GuildRoll_standings.import()
       local name_epgp = t[name]
       if (name_epgp) then
         count = count + 1
-        --GuildRoll:debugPrint(string.format("%s {%s:%s}",name,name_epgp[1],name_epgp[2])) -- Debug
-        GuildRoll:update_epgp_v3(name_epgp[1],name_epgp[2],i,name,officernote)
+        local new_ep = name_epgp.ep
+        local new_gp = name_epgp.gp
+        
+        -- If GP is not present in import, preserve existing GP or fallback to baseAE
+        if not new_gp then
+          new_gp = GuildRoll:get_gp_v3(name, officernote) or GuildRoll.VARS.baseAE
+        end
+        
+        --GuildRoll:debugPrint(string.format("%s {%s:%s}",name,new_ep,new_gp)) -- Debug
+        GuildRoll:update_epgp_v3(new_ep,new_gp,i,name,officernote)
         t[name]=nil
       end
     end
@@ -152,7 +166,7 @@ function GuildRoll_standings.import()
     local report = string.format(L["Imported %d members.\n"],count)
     report = string.format(L["%s\nFailed to import:"],report)
     for name,epgp in pairs(t) do
-      report = string.format("%s%s {%s:%s}\n",report,name,t[1],t[2])
+      report = string.format("%s%s {%s:%s}\n",report,name,epgp.ep or "?",epgp.gp or "?")
     end
     guildep_export.AddSelectText(report)
   end

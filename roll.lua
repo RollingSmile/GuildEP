@@ -159,7 +159,7 @@ rollFrame:SetBackdrop({
 
 -- Create the Roll button inside the frame
 local rollButton = CreateFrame("Button", "GuildEpRollButton", rollFrame, "UIPanelButtonTemplate")
-rollButton:SetWidth(96)
+rollButton:SetWidth(70)
 rollButton:SetHeight(30)
 rollButton:SetText("Roll")
 rollButton:SetPoint("CENTER", rollFrame, "CENTER")
@@ -247,15 +247,17 @@ end)
 rollFrame:SetScript("OnMouseUp", function(_, button)
     if button == "LeftButton" then
         rollFrame:StopMovingOrSizing()
-        GuildRoll_RollPos.x = rollFrame:GetLeft()
-        GuildRoll_RollPos.y = rollFrame:GetTop()
+        local x, y = rollFrame:GetCenter()
+        GuildRoll_RollPos.x = x
+        GuildRoll_RollPos.y = y
     end
 end)
 rollFrame:SetScript("OnDragStart", function() rollFrame:StartMoving() end)
 rollFrame:SetScript("OnDragStop", function()
     rollFrame:StopMovingOrSizing()
-    GuildRoll_RollPos.x = rollFrame:GetLeft()
-    GuildRoll_RollPos.y = rollFrame:GetTop()
+    local x, y = rollFrame:GetCenter()
+    GuildRoll_RollPos.x = x
+    GuildRoll_RollPos.y = y
 end)
 
 -- Restore saved position on load
@@ -271,8 +273,8 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
     
     -- Clear existing option widgets safely
     if rollOptionsFrame then
-        for i = rollOptionsFrame:GetNumChildren(), 1, -1 do
-            local child = select(i, rollOptionsFrame:GetChildren())
+        local children = { rollOptionsFrame:GetChildren() }
+        for _, child in ipairs(children) do
             if child then
                 child:Hide()
                 child:SetParent(nil)
@@ -282,7 +284,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     -- Recreate buttons under the rollOptionsFrame
     previousButton = rollOptionsFrame
-    for _, opt in ipairs(newOptions) do
+    for _, opt in ipairs(options) do
         local buttonFrame = CreateRollButton(opt[1], rollOptionsFrame, opt[2], previousButton, opt[3] or 110, opt[4] or false)
         if previousButton == rollOptionsFrame then
             buttonFrame:SetPoint("TOP", rollOptionsFrame, "TOP", 0, 0)

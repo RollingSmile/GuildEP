@@ -1597,19 +1597,6 @@ StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
   showAlert = 1,
   hideOnEscape = 1
 }
-StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
-  text = L["|cffff0000Are you sure you want to Reset ALL AuxStanding?|r"],
-  button1 = TEXT(OKAY),
-  button2 = TEXT(CANCEL),
-  OnAccept = function()
-    GuildRoll:ClearGP_v3()
-  end,
-  timeout = 0,
-  whileDead = 1,
-  exclusive = 1,
-  showAlert = 1,
-  hideOnEscape = 1
-}
 
 StaticPopupDialogs["GUILDROLL_AWARD_EP_RAID_HELP"] = {
   text = "Enter EP to award to raid members:",
