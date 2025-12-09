@@ -1,4 +1,3 @@
--- FILE CONTENT START --
 local T = AceLibrary("Tablet-2.0")
 local D = AceLibrary("Dewdrop-2.0")
 local C = AceLibrary("Crayon-2.0")
@@ -91,7 +90,8 @@ guildep_export.scroll:SetScrollChild(guildep_export.edit)
 GuildRoll:make_escable("guildep_exportframe","add")
 
 function GuildRoll_standings:Export()
-  if not admin() then return end
+  -- Evita dipendere dalla funzione globale admin(); usa direttamente l'API
+  if not (CanEditOfficerNote and CanEditOfficerNote()) then return end
   guildep_export.action:Hide()
   guildep_export.title:SetText(C:Gold(L["Ctrl-C to copy. Esc to close."]))
   local t = {}
@@ -114,6 +114,7 @@ function GuildRoll_standings:Export()
 end
 
 function GuildRoll_standings:Import()
+  -- Import richiede essere leader della gilda
   if not IsGuildLeader() then return end
   guildep_export.action:Show()
   guildep_export.title:SetText(C:Red("Ctrl-V to paste data. Esc to close."))
@@ -209,7 +210,8 @@ function GuildRoll_standings:OnEnable()
           "tooltipText", L["Refresh window"],
           "func", function() GuildRoll_standings:Refresh() end
         )
-        if admin() then
+        -- Usa direttamente CanEditOfficerNote invece della globale admin() per robustezza
+        if (CanEditOfficerNote and CanEditOfficerNote()) then
           D:AddLine(
             "text", L["Export"],
             "tooltipText", L["Export standings to csv."],
@@ -419,5 +421,3 @@ end
 
 -- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,RetR[...]
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs
-
--- FILE CONTENT END --
