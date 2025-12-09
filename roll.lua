@@ -292,11 +292,8 @@ function GuildRoll:RebuildRollOptions()
         -- Use GetChildren() into a table so we don't rely on the global select()
         local children = { rollOptionsFrame:GetChildren() }
         for _, child in ipairs(children) do
-            if child then
-                -- hide and detach the child frame safely
-                if child.Hide then child:Hide() end
-                if child.SetParent then child:SetParent(nil) end
-            end
+            child:Hide()
+            child:SetParent(nil)
         end
     end
     

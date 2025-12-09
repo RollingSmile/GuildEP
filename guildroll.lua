@@ -7,7 +7,7 @@ if select == nil then
     local args = { ... }
     if idx == '#' then
       -- count arguments (note: stops at first nil; matches many common uses)
-      return table.getn(args)
+      return #args
     end
     local n = tonumber(idx)
     if not n then return nil end
