@@ -1184,7 +1184,7 @@ function GuildRoll:OnClick(button)
 
   -- Shift + Click -> toggle the roll UI frame (everyone)
   if shift and not alt and not ctrl then
-    local f = _G and _G["GuildEpRollFrame"]
+    local f = _G["GuildEpRollFrame"]
     if f then
       if f:IsShown() then
         f:Hide()
