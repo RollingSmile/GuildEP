@@ -411,7 +411,7 @@ function GuildRoll:buildMenu()
 
       container.args["info"] = {
         type = "header",
-        name = "Seleziona un rank: i giocatori con rankIndex <= selezionato vedranno il tasto CSR.",
+        name = "Select a rank: players with rankIndex <= selected will see the CSR button.",
       }
 
       -- Collect rank names from guild roster if available
@@ -440,16 +440,15 @@ function GuildRoll:buildMenu()
         container.args[key] = {
           type = "toggle",
           name = rankName,
-          desc = "Imposta '" .. rankName .. "' (index " .. tostring(idx) .. ") come soglia CSR.",
+          desc = "Set '" .. rankName .. "' (index " .. tostring(idx) .. ") as CSR threshold.",
           -- Radio behavior: true only if the threshold is exactly this index
           get = function() return tonumber(GuildRoll_CSRThreshold) == idx end,
           set = function(v)
             if v then
               GuildRoll_CSRThreshold = idx
-            else
-              GuildRoll_CSRThreshold = nil
+              if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
             end
-            if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
+            -- Don't allow deselection; user must select a different rank or use Clear button
           end,
         }
       end
@@ -457,7 +456,7 @@ function GuildRoll:buildMenu()
       container.args["clear"] = {
         type = "execute",
         name = "Clear selection",
-        desc = "Rimuove la soglia (disabilita CSR per fallback).",
+        desc = "Remove the threshold (disables CSR for all players).",
         func = function()
           GuildRoll_CSRThreshold = nil
           if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
