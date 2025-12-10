@@ -606,16 +606,8 @@ function GuildRoll:buildMenu()
      desc = string.format(L["Resets everyone\'s Standing to 0/%d (Admin only)."],GuildRoll.VARS.baseAE),
      order = 120,
      hidden = function() return not (IsGuildLeader()) end,
-     func = function() StaticPopup_Show("RET_EP_CONFIRM_RESET") end
+     func = function() StaticPopup_Show("CONFIRM_RESET") end
     }
-    -- options.args["resetAuxStanding"] = {
-    -- type = "execute",
-    -- name = L["Reset AuxStanding"],
-    -- desc = string.format(L["Resets everyone\'s AuxStanding to 0/%d (Admin only)."],GuildRoll.VARS.baseAE),
-    -- order = 122,
-    -- hidden = function() return not (IsGuildLeader()) end,
-    -- func = function() StaticPopup_Show("RET_EP_CONFIRM_RESET") end
-    -- }
     options.args["reset_frames"] = {
      type = "execute",
      name = "Reset Frames",
@@ -2263,7 +2255,7 @@ end
 -- Dialogs
 -------------
 
-StaticPopupDialogs["RET_EP_SET_MAIN"] = {
+StaticPopupDialogs["SET_MAIN"] = {
   text = L["Set Main"],
   button1 = TEXT(ACCEPT),
   button2 = TEXT(CANCEL),
@@ -2340,12 +2332,12 @@ StaticPopupDialogs["GUILDROLL_SET_MAIN_PROMPT"] = {
 
 -- StaticPopupDialogs keys must be unique. Double confirmation for EP reset:
 -- First dialog warns about the action, second dialog requires final confirmation.
-StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
+StaticPopupDialogs["CONFIRM_RESET"] = {
   text = L["|cffff0000Are you sure you want to Reset ALL Standing?|r"],
   button1 = TEXT(OKAY),
   button2 = TEXT(CANCEL),
   OnAccept = function()
-    StaticPopup_Show("RET_EP_CONFIRM_RESET_FINAL")
+    StaticPopup_Show("CONFIRM_RESET_FINAL")
   end,
   timeout = 0,
   whileDead = 1,
@@ -2354,7 +2346,7 @@ StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
   hideOnEscape = 1
 }
 
-StaticPopupDialogs["RET_EP_CONFIRM_RESET_FINAL"] = {
+StaticPopupDialogs["CONFIRM_RESET_FINAL"] = {
   text = L["|cffff0000This will reset ALL player Standing to 0. This action cannot be undone!\n\nAre you ABSOLUTELY sure?|r"],
   button1 = TEXT(OKAY),
   button2 = TEXT(CANCEL),
