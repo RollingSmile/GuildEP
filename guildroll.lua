@@ -436,7 +436,12 @@ function GuildRoll:buildMenu()
       -- Helper: Apply threshold change and notify
       local function applyThresholdChange(newThreshold)
         -- Convert to number to ensure numeric storage
-        GuildRoll_CSRThreshold = newThreshold ~= nil and tonumber(newThreshold) or nil
+        -- Ensure threshold is never negative (GM must always have access)
+        local numericThreshold = tonumber(newThreshold)
+        if numericThreshold and numericThreshold < 0 then
+          numericThreshold = 0
+        end
+        GuildRoll_CSRThreshold = numericThreshold
         if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
         -- Share settings to guild if admin (guild leader or officer with edit permissions)
         if hasCSREditPermission() then
@@ -472,12 +477,17 @@ function GuildRoll:buildMenu()
         local visualIdx = currentRankIdx + 1  -- Visual index starts at 1
         local key = "rank_" .. tostring(currentRankIdx)
         
+        local descText
+        if currentRankIdx == 0 then
+          descText = "Guild Master (always has CSR access, cannot be disabled)"
+        else
+          descText = "Set threshold to '" .. rankName .. "' (rankIndex " .. tostring(currentRankIdx) .. "). This rank and all higher ranks will see CSR."
+        end
+        
         container.args[key] = {
           type = "toggle",
           name = rankName,
-          desc = (currentRankIdx == 0) 
-            and "Guild Master (always has CSR access, cannot be disabled)" 
-            or ("Set threshold to '" .. rankName .. "' (rankIndex " .. tostring(currentRankIdx) .. "). This rank and all higher ranks will see CSR."),
+          desc = descText,
           -- Cumulative checkbox: checked if current threshold >= this rankIndex
           get = function()
             local threshold = tonumber(GuildRoll_CSRThreshold)
@@ -489,13 +499,9 @@ function GuildRoll:buildMenu()
               applyThresholdChange(currentRankIdx)
             else
               -- Unchecking: set threshold to next higher rank (lower rankIdx = higher rank)
-              -- Unchecking rank R should set threshold to (R - 1)
-              -- Safety guard: Guild Master (rank 0) is disabled, but if somehow unchecked, keep threshold at 0
-              if currentRankIdx == 0 then
-                applyThresholdChange(0)
-              else
-                applyThresholdChange(currentRankIdx - 1)
-              end
+              -- Note: Guild Master (rank 0) is disabled and should never reach here,
+              -- but if it does, applyThresholdChange will clamp to 0 minimum
+              applyThresholdChange(currentRankIdx - 1)
             end
           end,
           -- Disable rank 0 (Guild Master) so it cannot be unchecked
