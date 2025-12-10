@@ -1429,32 +1429,20 @@ GuildRoll.independentProfile = true
 
 -- Debounce state for preventing duplicate frame opens
 local _lastOpen = 0
-local _openInProgress = false
 local OPEN_DEBOUNCE = 0.2
 
 -- Helper function to open personal log with debounce protection
 local function OpenPersonalLogForCharacter(character)
   local now = GetTime()
-  if _openInProgress or (now - _lastOpen) < OPEN_DEBOUNCE then
+  -- Time-based debounce check
+  if (now - _lastOpen) < OPEN_DEBOUNCE then
     return -- Ignore duplicate calls within debounce window
   end
   
-  _openInProgress = true
   _lastOpen = now
-  
+  -- Use current player if no character specified
+  character = character or UnitName("player")
   GuildRoll:ShowPersonalLog(character)
-  
-  -- Reset the flag after a short delay
-  local function resetFlag()
-    _openInProgress = false
-  end
-  -- Use C_Timer if available (modern WoW), otherwise fallback
-  if C_Timer and C_Timer.After then
-    C_Timer.After(OPEN_DEBOUNCE, resetFlag)
-  else
-    -- Fallback for older WoW versions - simple delayed reset
-    _openInProgress = false
-  end
 end
 
 function GuildRoll:OnTooltipUpdate()
