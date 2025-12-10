@@ -269,7 +269,8 @@ function GuildRoll:ShowPersonalLog(name)
   -- Register personal tablet (once)
   GuildRoll_logs:registerPersonalTablet()
   -- Open and detach so it becomes a window like the admin logs
-  if T:IsAttached("GuildRoll_personal_logs") then
+  -- Open only if it's not already attached (prevents creating duplicate frames)
+  if not T:IsAttached("GuildRoll_personal_logs") then
     T:Open("GuildRoll_personal_logs")
   end
   T:Detach("GuildRoll_personal_logs")
