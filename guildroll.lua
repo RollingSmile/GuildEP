@@ -403,9 +403,6 @@ function GuildRoll:buildMenu()
       hidden = function() return not admin() end,
     }
     -- Radio-like rank selector for CSR threshold
-    -- Initialize the persistent variable (fallback to rank index 3)
-    GuildRoll_CSRThreshold = GuildRoll_CSRThreshold or 3
-
     local function BuildCSRRankRadioGroup(container)
       container.args = container.args or {}
 
@@ -447,6 +444,10 @@ function GuildRoll:buildMenu()
             if v then
               GuildRoll_CSRThreshold = idx
               if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
+              -- Share settings to guild if admin
+              if (IsGuildLeader()) then
+                GuildRoll:shareSettings(true)
+              end
             end
             -- Don't allow deselection; user must select a different rank or use Clear button
           end,
@@ -460,6 +461,10 @@ function GuildRoll:buildMenu()
         func = function()
           GuildRoll_CSRThreshold = nil
           if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
+          -- Share settings to guild if admin
+          if (IsGuildLeader()) then
+            GuildRoll:shareSettings(true)
+          end
         end
       }
     end
@@ -475,15 +480,19 @@ function GuildRoll:buildMenu()
     }
     BuildCSRRankRadioGroup(options.args["csr_rank_selector"])
 
-    -- Dynamically update rank names when roster changes
-    local csr_update_frame = CreateFrame("Frame")
-    csr_update_frame:RegisterEvent("GUILD_ROSTER_UPDATE")
-    csr_update_frame:SetScript("OnEvent", function()
-      -- Rebuild toggles with updated names
-      BuildCSRRankRadioGroup(options.args["csr_rank_selector"])
-      -- Refresh Dewdrop/Tablet menu if necessary
-      if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
-    end)
+    -- Dynamically update rank names when roster changes (create frame only once)
+    if not self._csr_update_frame then
+      self._csr_update_frame = CreateFrame("Frame")
+      self._csr_update_frame:RegisterEvent("GUILD_ROSTER_UPDATE")
+      self._csr_update_frame:SetScript("OnEvent", function()
+        -- Rebuild toggles with updated names
+        if options and options.args and options.args["csr_rank_selector"] then
+          BuildCSRRankRadioGroup(options.args["csr_rank_selector"])
+        end
+        -- Refresh Dewdrop/Tablet menu if necessary
+        if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
+      end)
+    end
     options.args["reset"] = {
      type = "execute",
      name = L["Reset Standing"],
