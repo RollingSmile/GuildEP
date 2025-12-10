@@ -1033,14 +1033,8 @@ function GuildRoll:shareSettings(force)
     local payload = string.format("SHARE:CSR=%d;RO=%d;DC=%s;MIN=%s;ALT=%s;SC=%s",
       csr, ro, tostring(dc), tostring(minep), tostring(alt), sc)
     
-    -- Use existing addon prefix or fallback
-    local prefix = self.VARS.prefix or "GuildRoll"
-    
-    -- Send via addon message with pcall for safety
-    local success, err = pcall(SendAddonMessage, prefix, payload, "GUILD")
-    if not success then
-      self:debugPrint("Failed to send settings: " .. tostring(err))
-    end
+    -- Send via existing addonMessage method for consistency
+    self:addonMessage(payload, "GUILD")
     
     -- Also send legacy SETTINGS message for backwards compatibility
     local addonMsg = string.format("SETTINGS;%s:%s:%s:%s:%s:%s;1",0,0,dc,minep,tostring(GuildRollAltspool),alt)

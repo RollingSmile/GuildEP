@@ -39,7 +39,8 @@ local function PlayerHasCSRPermission()
         -- Compare names and check rank index
         if name == playerName and rankIndex then
             -- Safely compare numeric rankIndex
-            return tonumber(rankIndex) <= threshold
+            local numericRank = tonumber(rankIndex)
+            return numericRank and numericRank <= threshold
         end
     end
     
