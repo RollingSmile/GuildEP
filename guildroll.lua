@@ -1429,7 +1429,7 @@ GuildRoll.independentProfile = true
 
 -- Debounce state for preventing duplicate frame opens
 local _lastOpen = 0
-local OPEN_DEBOUNCE = 0.2
+local OPEN_DEBOUNCE = 0.2  -- 200ms debounce window to prevent duplicate clicks from FuBar panel/minimap frames
 
 -- Helper function to open personal log with debounce protection
 local function OpenPersonalLogForCharacter(character)
@@ -1440,8 +1440,6 @@ local function OpenPersonalLogForCharacter(character)
   end
   
   _lastOpen = now
-  -- Use current player if no character specified
-  character = character or UnitName("player")
   GuildRoll:ShowPersonalLog(character)
 end
 
