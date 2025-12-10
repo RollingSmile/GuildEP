@@ -124,7 +124,7 @@ function GuildRoll_logs:Toggle(forceShow)
   self:Top()
   if T:IsAttached("GuildRoll_logs") then
     pcall(function() T:Detach("GuildRoll_logs") end) -- show
-    if (T:IsLocked and T:IsLocked("GuildRoll_logs")) then
+    if (T.IsLocked and T:IsLocked("GuildRoll_logs")) then
       pcall(function() T:ToggleLocked("GuildRoll_logs") end)
     end
     self:setHideScript()
@@ -253,7 +253,7 @@ function GuildRoll_logs:TogglePersonal(forceShow)
   self:TopPersonal()
   if T:IsAttached("GuildRoll_personal_logs") then
     pcall(function() T:Detach("GuildRoll_personal_logs") end) -- show
-    if (T:IsLocked and T:IsLocked("GuildRoll_personal_logs")) then
+    if (T.IsLocked and T:IsLocked("GuildRoll_personal_logs")) then
       pcall(function() T:ToggleLocked("GuildRoll_personal_logs") end)
     end
     self:setHideScriptPersonal()
@@ -430,5 +430,5 @@ function GuildRoll:SavePersonalLog(name)
   end
 end
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,Guild_disc[...]
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_disc[...[...]
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs,GuildRoll_personalLogSaved,GuildRoll_personalLogs
