@@ -73,24 +73,36 @@ function GuildRoll_logs:Refresh()
   T:Refresh("GuildRoll_logs")
 end
 
+-- helper: find an existing detached Tablet20DetachedFrame owned by 'ownerName'
+local function findDetachedFrame(ownerName)
+  for i = 1, 100 do
+    local f = _G[string.format("Tablet20DetachedFrame%d", i)]
+    if f and f.owner and f.owner == ownerName then
+      return f
+    end
+  end
+  return nil
+end
+
 function GuildRoll_logs:setHideScript()
   local i = 1
   local tablet = getglobal(string.format("Tablet20DetachedFrame%d",i))
   while (tablet) and i<100 do
     if tablet.owner ~= nil and tablet.owner == "GuildRoll_logs" then
       GuildRoll:make_escable(string.format("Tablet20DetachedFrame%d",i),"add")
-      tablet:SetScript("OnHide",nil)
-      tablet:SetScript("OnHide",function()
+      -- capture the frame properly and use 'self' in the closure
+      tablet:SetScript("OnHide", nil)
+      tablet:SetScript("OnHide", function(self)
           if not T:IsAttached("GuildRoll_logs") then
             T:Attach("GuildRoll_logs")
-            this:SetScript("OnHide",nil)
+            self:SetScript("OnHide", nil)
           end
         end)
       break
     end    
     i = i+1
     tablet = getglobal(string.format("Tablet20DetachedFrame%d",i))
-  end  
+  end
 end
 
 function GuildRoll_logs:Top()
@@ -197,11 +209,11 @@ function GuildRoll_logs:setHideScriptPersonal()
   while (tablet) and i<100 do
     if tablet.owner ~= nil and tablet.owner == "GuildRoll_personal_logs" then
       GuildRoll:make_escable(string.format("Tablet20DetachedFrame%d",i),"add")
-      tablet:SetScript("OnHide",nil)
-      tablet:SetScript("OnHide",function()
+      tablet:SetScript("OnHide", nil)
+      tablet:SetScript("OnHide", function(self)
           if not T:IsAttached("GuildRoll_personal_logs") then
             T:Attach("GuildRoll_personal_logs")
-            this:SetScript("OnHide",nil)
+            self:SetScript("OnHide", nil)
           end
         end)
       break
@@ -269,30 +281,44 @@ function GuildRoll:ShowPersonalLog(name)
   -- Ensure personal tablet registered
   GuildRoll_logs:registerPersonalTablet()
 
-  -- If the tablet is currently attached (i.e. hidden / docked), we want to detach (show) it.
-  -- If it's currently detached (visible), then:
-  --   - if it's already showing the same name, attach it (hide)
-  --   - if it's showing a different name, update/refresh the shown content (do not create a new frame)
-  if T:IsAttached("GuildRoll_personal_logs") then
-    -- Hidden/docked -> show for this name
-    currentPersonalName = name
-    lastPersonalShown = name
-    -- Open (ensure registered window exists), refresh and detach to show
-    T:Open("GuildRoll_personal_logs")
-    GuildRoll_logs:RefreshPersonal()
-    T:Detach("GuildRoll_personal_logs")
-    GuildRoll_logs:setHideScriptPersonal()
-  else
-    -- Detached / visible
+  -- Check whether a detached frame for the personal logs already exists and is visible
+  local detached = findDetachedFrame("GuildRoll_personal_logs")
+  local isVisible = (detached and detached:IsShown())
+
+  if isVisible then
+    -- Detached (visible)
     if lastPersonalShown == name then
-      -- Same name visible -> hide (attach)
+      -- same name -> hide/attach
+      detached:Hide()
+      -- ensure tablet state is attached
       T:Attach("GuildRoll_personal_logs")
       lastPersonalShown = nil
+      currentPersonalName = nil
     else
-      -- Different name visible -> update displayed name and refresh contents
+      -- different name -> update contents
       currentPersonalName = name
       lastPersonalShown = name
       GuildRoll_logs:RefreshPersonal()
+    end
+  else
+    -- Not visible -> open and detach (show) for this name
+    currentPersonalName = name
+    lastPersonalShown = name
+    -- open & detach
+    if not T:IsRegistered("GuildRoll_personal_logs") then
+      GuildRoll_logs:registerPersonalTablet()
+    end
+    T:Open("GuildRoll_personal_logs")
+    GuildRoll_logs:RefreshPersonal()
+    -- only detach if there isn't already a detached frame (safety)
+    local alreadyDetached = findDetachedFrame("GuildRoll_personal_logs")
+    if not alreadyDetached then
+      T:Detach("GuildRoll_personal_logs")
+      GuildRoll_logs:setHideScriptPersonal()
+    else
+      -- There is a detached frame but it was hidden; just show it
+      alreadyDetached:Show()
+      GuildRoll_logs:setHideScriptPersonal()
     end
   end
 end
