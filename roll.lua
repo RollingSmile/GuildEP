@@ -170,15 +170,15 @@ end
 
 -- Create a frame for the Roll button
 local rollFrame = CreateFrame("Frame", "GuildEpRollFrame", UIParent)
--- Set frame so its inner area matches the button (button 96x30) with insets=8 -> inner = 96x30
-rollFrame:SetWidth(112)  -- 96 + 8*2
-rollFrame:SetHeight(46)  -- 30 + 8*2
+-- Make the frame snug around the button: button 96x30 with small padding (insets = 3)
+rollFrame:SetWidth(102)  -- 96 + 3*2
+rollFrame:SetHeight(36)  -- 30 + 3*2
 rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", GuildRoll_RollPos.x, GuildRoll_RollPos.y)
 
 function GuildRoll:ResetButton()
-    -- Match reset size to the frame so the border encloses the button exactly
-    rollFrame:SetWidth(112)
-    rollFrame:SetHeight(46)
+    -- Match reset size to the frame so the border encloses the button snugly
+    rollFrame:SetWidth(102)
+    rollFrame:SetHeight(36)
     rollFrame:SetMovable(false)
     rollFrame:ClearAllPoints()
     rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", 400, 300)
@@ -192,12 +192,12 @@ rollFrame:SetMovable(true)
 rollFrame:EnableMouse(true)
 rollFrame:RegisterForDrag("LeftButton")
 
--- Add a border to the frame so it's visible
+-- Add a border to the frame so it's visible; small insets make it close to the button
 rollFrame:SetBackdrop({
     bgFile = "Interface\\DialogFrame\\UI-DialogBox-Background",
     edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
     tile = true, tileSize = 32, edgeSize = 16,
-    insets = { left = 8, right = 8, top = 8, bottom = 8 }
+    insets = { left = 3, right = 3, top = 3, bottom = 3 }
 })
 
 -- Create the Roll button inside the frame
