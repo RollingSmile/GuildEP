@@ -435,7 +435,8 @@ function GuildRoll:buildMenu()
 
       -- Helper: Apply threshold change and notify
       local function applyThresholdChange(newThreshold)
-        GuildRoll_CSRThreshold = newThreshold
+        -- Convert to number to ensure numeric storage
+        GuildRoll_CSRThreshold = newThreshold ~= nil and tonumber(newThreshold) or nil
         if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
         -- Share settings to guild if admin (guild leader or officer with edit permissions)
         if hasCSREditPermission() then
@@ -460,54 +461,40 @@ function GuildRoll:buildMenu()
       -- If roster not ready, use standard placeholders
       if maxIndex < 0 then
         maxIndex = 4
-        ranks = { [0] = "GuildMaster", [1] = "Officer", [2] = "Veteran", [3] = "Member", [4] = "Initiate" }
+        ranks = { [0] = "Guild Master", [1] = "Officer", [2] = "Veteran", [3] = "Core Raider", [4] = "Raider" }
       end
 
-      -- First item: "Select Rank:" (visual index 1)
-      container.args["select_rank"] = {
-        type = "toggle",
-        name = "Select Rank:",
-        desc = "Clear threshold (disables CSR for all players).",
-        -- Checked only when threshold is nil
-        get = function() return GuildRoll_CSRThreshold == nil end,
-        set = function(v)
-          if v then
-            applyThresholdChange(nil)
-          end
-          -- When v is false (unchecked), user is clicking a different rank checkbox, nothing to do here
-        end,
-        order = 1,
-      }
-
-      -- Rank items: visual indices 2 to (maxIndex + 2)
-      -- Visual index i corresponds to rankIndex (i-2)
+      -- Rank items: starting from rank 0 (Guild Master)
+      -- Use local variable per iteration to ensure proper closure capture
       for rankIdx = 0, maxIndex do
-        local rankName = ranks[rankIdx] or ("Rank " .. tostring(rankIdx))
-        local visualIdx = rankIdx + 2
-        local key = "rank_" .. tostring(rankIdx)
+        local currentRankIdx = rankIdx  -- Local per-iteration binding for closure
+        local rankName = ranks[currentRankIdx] or ("Rank " .. tostring(currentRankIdx))
+        local visualIdx = currentRankIdx + 1  -- Visual index starts at 1
+        local key = "rank_" .. tostring(currentRankIdx)
+        
         container.args[key] = {
           type = "toggle",
           name = rankName,
-          desc = "Set threshold to '" .. rankName .. "' (rankIndex " .. tostring(rankIdx) .. "). This rank and all higher ranks will see CSR.",
+          desc = (currentRankIdx == 0) 
+            and "Guild Master (always has CSR access, cannot be disabled)" 
+            or ("Set threshold to '" .. rankName .. "' (rankIndex " .. tostring(currentRankIdx) .. "). This rank and all higher ranks will see CSR."),
           -- Cumulative checkbox: checked if current threshold >= this rankIndex
           get = function()
             local threshold = tonumber(GuildRoll_CSRThreshold)
-            return threshold ~= nil and threshold >= rankIdx
+            return threshold ~= nil and threshold >= currentRankIdx
           end,
           set = function(v)
             if v then
               -- Set threshold to this rankIndex
-              applyThresholdChange(rankIdx)
+              applyThresholdChange(currentRankIdx)
             else
               -- Unchecking: set threshold to next higher rank (lower rankIdx = higher rank)
-              -- If this is rank 0 (Guild Master), clear threshold entirely
-              if rankIdx == 0 then
-                applyThresholdChange(nil)
-              else
-                applyThresholdChange(rankIdx - 1)
-              end
+              -- Unchecking rank R should set threshold to (R - 1)
+              applyThresholdChange(currentRankIdx - 1)
             end
           end,
+          -- Disable rank 0 (Guild Master) so it cannot be unchecked
+          disabled = (currentRankIdx == 0),
           order = visualIdx,
         }
       end
