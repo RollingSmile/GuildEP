@@ -1336,9 +1336,10 @@ function GuildRoll:SetMain(mainName)
   
   -- Case 1: mainName == current character (setting self as main)
   if mainName == currentPlayer then
-    -- Remove {mainName} from public note if present
-    if self:noteHasTag(playerPublicNote, mainName) then
-      local newPublicNote = self:removeTagFromNote(playerPublicNote, mainName)
+    -- When setting self as main, still write to public note
+    -- This ensures the main tag is visible even when you are the main
+    if not self:noteHasTag(playerPublicNote, mainName) then
+      local newPublicNote = self:addTagToPublicNote(playerPublicNote, mainName)
       -- Only write if the note actually changed
       if newPublicNote ~= playerPublicNote then
         -- Use API with fallback
@@ -1347,10 +1348,9 @@ function GuildRoll:SetMain(mainName)
         elseif SetGuildRosterPublicNote then
           SetGuildRosterPublicNote(playerIndex, newPublicNote)
         end
-        self:defaultPrint(string.format("Removed {%s} from your public note.", mainName))
+        self:defaultPrint(string.format("Added {%s} to your public note.", mainName))
       end
     end
-    -- Do NOT add tag to public note, do NOT touch officer note
     GuildRoll_main = mainName
     self:defaultPrint(string.format("Your main has been set to %s (yourself).", mainName))
   else
@@ -1362,19 +1362,10 @@ function GuildRoll:SetMain(mainName)
       return
     end
     
-    -- Check if officer note already contains {mainName}
-    if self:noteHasTag(playerOfficerNote, mainName) then
-      -- Already in officer note, do nothing
-      GuildRoll_main = mainName
-      self:defaultPrint(string.format("Your main is already set to %s (in officer note).", mainName))
-      self:SetRefresh(true)
-      return
-    end
-    
-    -- Check if public note already contains {mainName}
+    -- Always write to public note (with 31 char limit and right-aligned tag)
     if not self:noteHasTag(playerPublicNote, mainName) then
-      -- Add {mainName} to public note
-      local newPublicNote = self:addTagToNote(playerPublicNote, mainName)
+      -- Use the new function that handles 31 char limit
+      local newPublicNote = self:addTagToPublicNote(playerPublicNote, mainName)
       -- Only write if the note actually changed
       if newPublicNote ~= playerPublicNote then
         -- Use API with fallback
@@ -1730,6 +1721,49 @@ function GuildRoll:prependTagToNote(note, tag)
     newNote = newNote .. note
   end
   return newNote
+end
+
+-- Add tag to public note with 31 character limit, placing tag as far right as possible
+-- If tag doesn't fit, removes text from the beginning to make room
+function GuildRoll:addTagToPublicNote(note, tag)
+  if not tag or tag == "" then return note end
+  note = note or ""
+  
+  -- Check if tag already exists
+  if self:noteHasTag(note, tag) then
+    return note
+  end
+  
+  local tagText = "{" .. tag .. "}"
+  local tagLength = string.len(tagText)
+  local maxLength = 31
+  
+  -- If note is empty, just add the tag
+  if note == "" then
+    return tagText
+  end
+  
+  -- Calculate available space for existing text
+  -- We want: existingText + " " + {tag}
+  local availableForText = maxLength - tagLength - 1  -- -1 for the space before tag
+  
+  if availableForText <= 0 then
+    -- Tag itself is too long or takes all space, just return the tag
+    return tagText
+  end
+  
+  local existingText = note
+  local textLength = string.len(existingText)
+  
+  if textLength <= availableForText then
+    -- Everything fits, add tag at the end with a space
+    return existingText .. " " .. tagText
+  else
+    -- Need to trim from the beginning to make room
+    -- Keep the rightmost characters that fit
+    local trimmedText = string.sub(existingText, textLength - availableForText + 1)
+    return trimmedText .. " " .. tagText
+  end
 end
 
 -- Remove all main-like tags (tags without ':') from officer note
