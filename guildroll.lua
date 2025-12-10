@@ -1427,13 +1427,29 @@ GuildRoll.cannotDetachTooltip = true
 GuildRoll.tooltipHiddenWhenEmpty = false
 GuildRoll.independentProfile = true
 
+-- Debounce state for preventing duplicate frame opens
+local _lastOpen = 0
+local OPEN_DEBOUNCE = 0.2  -- 200ms debounce window to prevent duplicate clicks from FuBar panel/minimap frames
+
+-- Helper function to open personal log with debounce protection
+local function OpenPersonalLogForCharacter(character)
+  local now = GetTime()
+  -- Time-based debounce check
+  if (now - _lastOpen) < OPEN_DEBOUNCE then
+    return -- Ignore duplicate calls within debounce window
+  end
+  
+  _lastOpen = now
+  GuildRoll:ShowPersonalLog(character)
+end
+
 function GuildRoll:OnTooltipUpdate()
   local hint = L["|cffffff00Click|r to toggle Standings.%s \n|cffffff00Right-Click|r for Options."]
   local extra
   if admin() then
-    extra = L[" \n|cffffff00Alt+Click|r to toggle Alts. \n|cffffff00Ctrl+Click|r to toggle Logs. \n|cffffff00Shift+Click|r to toggle Roll UI."]
+    extra = L[" \n|cffffff00Alt+Click|r to toggle Alts. \n|cffffff00Ctrl+Click|r to toggle Admin Logs. \n|cffffff00Shift+Click|r to open Personal Log."]
   else
-    extra = L[" \n|cffffff00Alt+Click|r to toggle Alts. \n|cffffff00Shift+Click|r to toggle Roll UI."]
+    extra = L[" \n|cffffff00Alt+Click|r to toggle Alts. \n|cffffff00Ctrl+Click|r to open Personal Log. \n|cffffff00Shift+Click|r to open Personal Log."]
   end
   hint = string.format(hint, extra)
   T:SetHint(hint)
@@ -1450,7 +1466,27 @@ function GuildRoll:OnClick(button)
   local shift = IsShiftKeyDown()
   local is_admin = admin()
   
-  -- Ctrl+Shift+Click: Open global admin log (if admin), otherwise fallback to personal log
+  -- Shift+Click: Open personal log for current character (with debounce)
+  if shift and not ctrl and not alt then
+    OpenPersonalLogForCharacter(UnitName("player"))
+    return
+  end
+  
+  -- Ctrl+Click: Open "selected log" based on admin status (with debounce)
+  if ctrl and not shift and not alt then
+    if is_admin then
+      -- Admin: open admin log
+      if GuildRoll_logs and GuildRoll_logs.Toggle then
+        GuildRoll_logs:Toggle(true)
+      end
+    else
+      -- Non-admin: open personal log
+      OpenPersonalLogForCharacter(UnitName("player"))
+    end
+    return
+  end
+  
+  -- Ctrl+Shift+Click: Keep existing behavior for backwards compatibility
   if ctrl and shift and not alt then
     if is_admin then
       -- Admin: show global admin log
@@ -1459,28 +1495,15 @@ function GuildRoll:OnClick(button)
       end
     else
       -- Not admin: fallback to personal log
-      GuildRoll:ShowPersonalLog()
+      OpenPersonalLogForCharacter(UnitName("player"))
     end
     return
   end
   
-  -- Ctrl+Click: Open personal log
-  if ctrl and not shift and not alt then
-    GuildRoll:ShowPersonalLog()
-    return
-  end
-  
-  -- Preserve existing behaviors
+  -- Alt+Click: Toggle alts
   if alt and not ctrl and not shift then
     if GuildRollAlts and GuildRollAlts.Toggle then
       GuildRollAlts:Toggle()
-    end
-    return
-  end
-  if shift and not alt and not ctrl then
-    local f = _G and _G["GuildEpRollFrame"]
-    if f then
-      if f:IsShown() then f:Hide() else f:Show() end
     end
     return
   end
