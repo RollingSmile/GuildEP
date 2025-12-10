@@ -1545,7 +1545,7 @@ GuildRoll.cannotDetachTooltip = true
 GuildRoll.tooltipHiddenWhenEmpty = false
 GuildRoll.independentProfile = true
 
--- helper locale: verifica se esiste già un detached frame con ownerName
+-- helper function: check if a detached frame with ownerName already exists
 local function hasDetachedOwner(ownerName)
   for i = 1, 100 do
     local f = _G[string.format("Tablet20DetachedFrame%d", i)]
@@ -1557,10 +1557,10 @@ local function hasDetachedOwner(ownerName)
 end
 
 function GuildRoll:OnTooltipUpdate()
-  -- Intestazione Hint:
+  -- Build hint header
   local hint = L["Hint:"]
 
-  -- Parte comune (una riga per hint)
+  -- Common hints (one line per hint)
   local common = {
     "|cffffff00Click|r to toggle Standings.",
     "|cffffff00Shift+Click|r to toggle Roll UI.",
@@ -1573,7 +1573,7 @@ function GuildRoll:OnTooltipUpdate()
     hint = hint .. "\n" .. line
   end
 
-  -- Parte extra (mostrata solo agli admin)
+  -- Extra hint (shown only to admins)
   if admin() then
     hint = hint .. "\n" .. "|cffffff00Ctrl+Shift+Click|r to toggle Admin Log."
   end
@@ -1612,7 +1612,7 @@ function GuildRoll:OnClick(button)
     return
   end
   
-  -- Ctrl+Click: Open personal log (evita duplicati)
+  -- Ctrl+Click: Open personal log (avoid duplicates)
   if ctrl and not shift and not alt then
     if not hasDetachedOwner("GuildRoll_logs") and not hasDetachedOwner("GuildRoll") then
       if GuildRoll and GuildRoll.ShowPersonalLog then
