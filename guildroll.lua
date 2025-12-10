@@ -1632,7 +1632,7 @@ function GuildRoll:OnClick(button)
       end
     else
       -- Not admin: fallback to personal log, but avoid duplicates
-      if not self:FindDetachedFrame("GuildRoll_logs") and not self:FindDetachedFrame("GuildRoll_personal_logs") then
+      if not (self:FindDetachedFrame("GuildRoll_logs") or self:FindDetachedFrame("GuildRoll_personal_logs")) then
         if GuildRoll and GuildRoll.ShowPersonalLog then
           pcall(function() GuildRoll:ShowPersonalLog() end)
         elseif GuildRoll and GuildRoll.SavePersonalLog then
@@ -1645,7 +1645,7 @@ function GuildRoll:OnClick(button)
   
   -- Ctrl+Click: Open personal log (avoid duplicates)
   if ctrl and not shift and not alt then
-    if not self:FindDetachedFrame("GuildRoll_logs") and not self:FindDetachedFrame("GuildRoll_personal_logs") then
+    if not (self:FindDetachedFrame("GuildRoll_logs") or self:FindDetachedFrame("GuildRoll_personal_logs")) then
       if GuildRoll and GuildRoll.ShowPersonalLog then
         pcall(function() GuildRoll:ShowPersonalLog() end)
       elseif GuildRoll and GuildRoll.SavePersonalLog then
