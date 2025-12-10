@@ -2304,12 +2304,14 @@ StaticPopupDialogs["GUILDROLL_SET_MAIN_PROMPT"] = {
   hideOnEscape = 1  
 }
 
+-- StaticPopupDialogs keys must be unique. Double confirmation for EP reset:
+-- First dialog warns about the action, second dialog requires final confirmation.
 StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
   text = L["|cffff0000Are you sure you want to Reset ALL Standing?|r"],
   button1 = TEXT(OKAY),
   button2 = TEXT(CANCEL),
   OnAccept = function()
-    GuildRoll:gp_reset_v3()
+    StaticPopup_Show("RET_EP_CONFIRM_RESET_FINAL")
   end,
   timeout = 0,
   whileDead = 1,
@@ -2317,12 +2319,13 @@ StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
   showAlert = 1,
   hideOnEscape = 1
 }
-StaticPopupDialogs["RET_EP_CONFIRM_RESET"] = {
-  text = L["|cffff0000Are you sure you want to Reset ALL AuxStanding?|r"],
+
+StaticPopupDialogs["RET_EP_CONFIRM_RESET_FINAL"] = {
+  text = L["|cffff0000This will reset ALL player Standing to 0. This action cannot be undone!\n\nAre you ABSOLUTELY sure?|r"],
   button1 = TEXT(OKAY),
   button2 = TEXT(CANCEL),
   OnAccept = function()
-    GuildRoll:ClearGP_v3()
+    GuildRoll:gp_reset_v3()
   end,
   timeout = 0,
   whileDead = 1,
