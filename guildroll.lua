@@ -1007,8 +1007,9 @@ end
 -- Broadcasts key admin settings (CSR threshold, raid_only, decay, min EP, alt percent, report channel)
 -- force: if true, bypasses permission check and throttle
 function GuildRoll:shareSettings(force)
-  -- Check permission: only guild leader or officer with note edit permission can share
-  if not force and not IsGuildLeader() and not (CanEditOfficerNote and CanEditOfficerNote()) then
+  -- Check permission: only guild leader or officer can share (admin() checks CanEditOfficerNote)
+  -- admin is forward-declared and will be available at runtime
+  if not force and not IsGuildLeader() and not admin() then
     return
   end
   
