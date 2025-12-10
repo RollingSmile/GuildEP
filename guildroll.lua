@@ -57,8 +57,7 @@ local hexColorQuality = {}
 local RaidKey = {}
 local zone_multipliers = {}
 
--- Constants for main character tag and note length
-local MAIN_TAG = "{MainCharacter}"
+-- Constants for note length
 local MAX_NOTE_LEN = 31
 
 -- Helper: trim public note with tag to ensure it fits within max length
@@ -1862,7 +1861,7 @@ end
 -- ProcessSetMainInput: Process user input for setting main character
 -- inputMain: user-provided main character name
 -- This function verifies the name, sets GuildRoll_main, and optionally
--- adds MAIN_TAG to the public note of the current character if it's an alt.
+-- adds {MainName} tag to the public note of the current character if it's an alt.
 function GuildRoll:ProcessSetMainInput(inputMain)
   if not inputMain or inputMain == "" then
     self:defaultPrint("Please provide a character name.")
@@ -1885,6 +1884,9 @@ function GuildRoll:ProcessSetMainInput(inputMain)
     return
   end
   
+  -- Create the main tag with the actual main character name
+  local mainTag = string.format("{%s}", verified)
+  
   -- Find the logged-in player's guild roster index
   local playerIndex, playerPublicNote, playerOfficerNote
   for i = 1, GetNumGuildMembers(1) do
@@ -1902,20 +1904,20 @@ function GuildRoll:ProcessSetMainInput(inputMain)
     return
   end
   
-  -- Check if officer note already contains MAIN_TAG
-  if string.find(playerOfficerNote, MAIN_TAG, 1, true) then
+  -- Check if officer note already contains a main tag (any {name} pattern)
+  if string.find(playerOfficerNote, "{%a[%a]*}") then
     self:defaultPrint("This is an Alt already.")
     return
   end
   
-  -- Check if public note already contains MAIN_TAG
-  if string.find(playerPublicNote, MAIN_TAG, 1, true) then
+  -- Check if public note already contains the main tag
+  if string.find(playerPublicNote, mainTag, 1, true) then
     self:defaultPrint("Alt setup ready (public note already contained tag).")
     return
   end
   
-  -- Append MAIN_TAG to public note
-  local newPublic = _trim_public_with_tag(playerPublicNote, MAIN_TAG, MAX_NOTE_LEN)
+  -- Append main tag to public note
+  local newPublic = _trim_public_with_tag(playerPublicNote, mainTag, MAX_NOTE_LEN)
   
   -- Write the new public note (wrapped in pcall for safety)
   local success, err = pcall(function()
@@ -1939,9 +1941,9 @@ function GuildRoll:PromptSetMainIfMissing()
   end
 end
 
--- MovePublicMainTagsToOfficerNotes: Admin function to migrate MAIN_TAG from public to officer notes
+-- MovePublicMainTagsToOfficerNotes: Admin function to migrate main tags from public to officer notes
 -- Requires CanEditOfficerNote() permission
--- Iterates through guild roster and moves MAIN_TAG from public note to officer note
+-- Iterates through guild roster and moves {MainName} tags from public note to officer note
 function GuildRoll:MovePublicMainTagsToOfficerNotes()
   if not CanEditOfficerNote() then
     self:defaultPrint("You do not have permission to edit officer notes.")
@@ -1956,15 +1958,16 @@ function GuildRoll:MovePublicMainTagsToOfficerNotes()
     publicNote = publicNote or ""
     officerNote = officerNote or ""
     
-    -- Check if public note contains MAIN_TAG
-    if string.find(publicNote, MAIN_TAG, 1, true) then
-      -- Remove only first occurrence of MAIN_TAG from public note
+    -- Check if public note contains a main tag pattern {name}
+    local mainTag = string.match(publicNote, "({%a[%a]*})")
+    if mainTag then
       -- Escape pattern characters for safe replacement
-      local escapedTag = string.gsub(MAIN_TAG, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+      local escapedTag = string.gsub(mainTag, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+      -- Remove only first occurrence of the main tag from public note
       local newPublic = string.gsub(publicNote, escapedTag, "", 1)
       
-      -- Insert MAIN_TAG before {EP:GP} in officer note
-      local newOfficer = _insertTagBeforeEP(officerNote, MAIN_TAG)
+      -- Insert main tag before {EP:GP} in officer note
+      local newOfficer = _insertTagBeforeEP(officerNote, mainTag)
       
       -- Write both notes (wrapped in pcall for safety)
       local successPublic, errPublic = pcall(function()
