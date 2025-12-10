@@ -170,13 +170,15 @@ end
 
 -- Create a frame for the Roll button
 local rollFrame = CreateFrame("Frame", "GuildEpRollFrame", UIParent)
-rollFrame:SetWidth(80)
-rollFrame:SetHeight(41)
+-- Set frame so its inner area matches the button (button 96x30) with insets=8 -> inner = 96x30
+rollFrame:SetWidth(112)  -- 96 + 8*2
+rollFrame:SetHeight(46)  -- 30 + 8*2
 rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", GuildRoll_RollPos.x, GuildRoll_RollPos.y)
 
 function GuildRoll:ResetButton()
-    rollFrame:SetWidth(80)
-    rollFrame:SetHeight(41)
+    -- Match reset size to the frame so the border encloses the button exactly
+    rollFrame:SetWidth(112)
+    rollFrame:SetHeight(46)
     rollFrame:SetMovable(false)
     rollFrame:ClearAllPoints()
     rollFrame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", 400, 300)
