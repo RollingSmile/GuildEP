@@ -1116,12 +1116,6 @@ if not t then return nil end
 return nil
 end
 
-function GuildRoll:givename_gp(getname,gp)
-  -- DEPRECATED: AuxStanding removed
-  self:debugPrint("givename_gp is deprecated - AuxStanding functionality has been removed")
-  return false, getname
-end
-
 function GuildRoll:givename_gp(getname,gp,block) -- DEPRECATED: AuxStanding removed
   self:debugPrint("givename_gp is deprecated - AuxStanding functionality has been removed")
   return false, getname
