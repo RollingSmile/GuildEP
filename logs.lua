@@ -212,6 +212,29 @@ local personalTabletRegistered = false
 local currentPersonalName = nil
 local lastPersonalShown = nil -- track the name currently being shown in the detached personal window
 
+-- Dummy owner to avoid Tablet asserting owner==nil
+local _tablet_dummy_owner = nil
+local function safeEnsureTabletOwner()
+  pcall(function()
+    if not T or not T.registry then return end
+    if not _tablet_dummy_owner then
+      -- try to create a tiny frame to serve as owner; fallback to UIParent
+      local ok, f = pcall(function() return CreateFrame and CreateFrame("Frame", "GuildRoll_TabletDummyOwner") end)
+      if ok and f then
+        _tablet_dummy_owner = f
+      else
+        _tablet_dummy_owner = UIParent
+      end
+    end
+    if T.registry.GuildRoll_personal_logs and T.registry.GuildRoll_personal_logs.tooltip then
+      if not T.registry.GuildRoll_personal_logs.tooltip.owner then
+        -- assign a non-nil owner so Tablet's asserts won't fire
+        T.registry.GuildRoll_personal_logs.tooltip.owner = _tablet_dummy_owner
+      end
+    end
+  end)
+end
+
 function GuildRoll_logs:registerPersonalTablet()
   if personalTabletRegistered then return end
   personalTabletRegistered = true
@@ -244,8 +267,11 @@ function GuildRoll_logs:setHideScriptPersonal()
     if frame.SetScript then
       frame:SetScript("OnHide", nil)
       frame:SetScript("OnHide", function(f)
-          -- Clean up the script when frame is hidden
           pcall(function()
+            -- When detached frame is hidden, reattach the tablet if needed (match other modules)
+            if T and T.IsAttached and not T:IsAttached("GuildRoll_personal_logs") then
+              pcall(function() T:Attach("GuildRoll_personal_logs") end)
+            end
             if f and f.SetScript then
               f:SetScript("OnHide", nil)
             end
@@ -326,7 +352,43 @@ function GuildRoll:ShowPersonalLog()
   currentPersonalName = name
   lastPersonalShown = name
 
-  -- Check if the tablet entry is currently attached (not detached)
+  -- Find any existing detached frame for the personal tablet
+  local detached = GuildRoll:FindDetachedFrame("GuildRoll_personal_logs")
+  local detachedVisible = (detached and detached:IsShown())
+
+  -- If there's a visible detached frame, preserve the original toggle semantics:
+  -- - Ctrl+click when same player closes (hide) the detached frame
+  -- - Ctrl+click when different player updates the detached frame's contents
+  if detachedVisible then
+    if lastPersonalShown == name then
+      -- Ensure owner non-nil before operations to avoid Tablet assert
+      safeEnsureTabletOwner()
+
+      -- Hide the visible detached frame (toggle off)
+      pcall(function() detached:Hide() end)
+      -- Ask Tablet to attach (hide the detached tooltip) inside pcall to avoid hard errors
+      pcall(function()
+        if T and T.IsAttached and T.Attach then
+          pcall(function() T:Attach("GuildRoll_personal_logs") end)
+        end
+      end)
+      lastPersonalShown = nil
+      currentPersonalName = nil
+      return
+    else
+      -- Different player requested while detached frame is visible: refresh contents
+      currentPersonalName = name
+      lastPersonalShown = name
+      pcall(function() GuildRoll_logs:RefreshPersonal() end)
+      return
+    end
+  end
+
+  -- Not visible: prepare to show for current player
+  currentPersonalName = name
+  lastPersonalShown = name
+
+  -- Check attached state (default to attached on errors)
   local isAttached = false
   if T and T.IsAttached then
     local ok, result = pcall(function() return T:IsAttached("GuildRoll_personal_logs") end)
@@ -336,7 +398,7 @@ function GuildRoll:ShowPersonalLog()
   end
 
   if isAttached then
-    -- If attached: open, refresh and show as detached (either existing detached frame or detach anew)
+    -- If attached: open & refresh, then show detached frame (existing or by detaching)
     pcall(function() T:Open("GuildRoll_personal_logs") end)
     pcall(function() GuildRoll_logs:RefreshPersonal() end)
 
@@ -344,23 +406,28 @@ function GuildRoll:ShowPersonalLog()
     if alreadyDetached then
       pcall(function() if alreadyDetached.Show then alreadyDetached:Show() end end)
     else
+      -- Ensure owner non-nil before detaching to avoid Tablet assert
+      safeEnsureTabletOwner()
       pcall(function() T:Detach("GuildRoll_personal_logs") end)
     end
 
     pcall(function() GuildRoll_logs:setHideScriptPersonal() end)
     return
-  else
-    -- If already detached: show existing detached frame & refresh, otherwise ask Tablet to attach (hide)
-    local detached = GuildRoll:FindDetachedFrame("GuildRoll_personal_logs")
-    if detached then
-      pcall(function() if detached.Show then detached:Show() end end)
-      pcall(function() GuildRoll_logs:RefreshPersonal() end)
-      pcall(function() GuildRoll_logs:setHideScriptPersonal() end)
-    else
-      pcall(function() T:Attach("GuildRoll_personal_logs") end)
-    end
-    return
   end
+
+  -- If not attached: try to open/refresh and ensure a detached frame is shown (or reattach to hide)
+  pcall(function() T:Open("GuildRoll_personal_logs") end)
+  pcall(function() GuildRoll_logs:RefreshPersonal() end)
+
+  local alreadyDetached = GuildRoll:FindDetachedFrame("GuildRoll_personal_logs")
+  if not alreadyDetached then
+    safeEnsureTabletOwner()
+    pcall(function() T:Detach("GuildRoll_personal_logs") end)
+  else
+    pcall(function() if alreadyDetached.Show then alreadyDetached:Show() end end)
+  end
+
+  pcall(function() GuildRoll_logs:setHideScriptPersonal() end)
 end
 
 -- Helper function to save personal log to chat for copy-paste (internal fallback only)
