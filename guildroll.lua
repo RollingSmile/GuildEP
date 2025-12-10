@@ -416,12 +416,17 @@ function GuildRoll:buildMenu()
         name = "Select a rank: players with rankIndex <= selected will see the CSR button. Checkmarks show all included ranks.",
       }
 
+      -- Helper: Check if current player has permission to edit CSR settings
+      local function hasCSREditPermission()
+        return IsGuildLeader() or admin()
+      end
+
       -- Helper: Apply threshold change and notify
       local function applyThresholdChange(newThreshold)
         GuildRoll_CSRThreshold = newThreshold
         if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
         -- Share settings to guild if admin (guild leader or officer with edit permissions)
-        if IsGuildLeader() or admin() then
+        if hasCSREditPermission() then
           GuildRoll:shareSettings(true)
         end
       end
