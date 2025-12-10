@@ -505,7 +505,7 @@ function GuildRoll:buildMenu()
             end
           end,
           -- Disable rank 0 (Guild Master) so it cannot be unchecked
-          disabled = (currentRankIdx == 0),
+          disabled = currentRankIdx == 0,
           order = visualIdx,
         }
       end
