@@ -417,7 +417,7 @@ function GuildRoll:buildMenu()
       -- Collect rank names from guild roster if available
       local ranks = {}
       local maxIndex = -1
-      local num = GetNumGuildMembers and GetNumGuildMembers(true) or 0
+      local num = GetNumGuildMembers and GetNumGuildMembers(1) or 0
       if num and num > 0 then
         for i = 1, num do
           local name, rank, rankIndex = GetGuildRosterInfo(i)
