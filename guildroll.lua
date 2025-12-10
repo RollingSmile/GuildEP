@@ -402,27 +402,44 @@ function GuildRoll:buildMenu()
       end,
       hidden = function() return not admin() end,
     }
+    -- CSR Threshold: show guild rank names where possible
     options.args["csr_threshold"] = {
-      type = "range",
+      type = "select",
       name = L["CSR Threshold"],
       desc = L["Maximum rank index allowed to view CSR"],
       order = 119,
-      get = function() return tonumber(GuildRoll_CSRThreshold) or 3 end,
-      set = function(v) 
-        GuildRoll_CSRThreshold = math.floor(v)
+      values = function()
+        local values = {}
+        -- Try to populate from GuildControl API (Turtle WoW / 1.12)
+        if GuildControlGetNumRanks and GuildControlGetRankName then
+          local num = GuildControlGetNumRanks() or 0
+          for i = 0, math.max(0, num - 1) do
+            -- Be robust to 0-based or 1-based GuildControlGetRankName
+            local name = GuildControlGetRankName(i)
+            if not name then name = GuildControlGetRankName(i + 1) end
+            if name and name ~= "" then
+              values[tostring(i)] = name
+            end
+          end
+        end
+        -- Fallback: numeric labels 0..9
+        if next(values) == nil then
+          for i = 0, 9 do values[tostring(i)] = tostring(i) end
+        end
+        return values
+      end,
+      get = function() return tostring(tonumber(GuildRoll_CSRThreshold) or 3) end,
+      set = function(v)
+        GuildRoll_CSRThreshold = tonumber(v)
         -- Trigger local roll UI rebuild immediately
         if GuildRoll and GuildRoll.RebuildRollOptions then
           GuildRoll:RebuildRollOptions()
         end
-        -- Share settings to guild if admin
-        if GuildRoll and GuildRoll.shareSettings then
-          GuildRoll:shareSettings()
+        if (IsGuildLeader()) then
+          GuildRoll:shareSettings(true)
         end
       end,
-      min = 0,
-      max = 10,
-      step = 1,
-      hidden = function() return not (CanEditOfficerNote and CanEditOfficerNote()) end,
+      hidden = function() return not admin() end,
     }
     options.args["reset"] = {
      type = "execute",
