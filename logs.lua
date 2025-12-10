@@ -154,13 +154,21 @@ end
 function GuildRoll_logs:BuildLogsTable()
   -- Check if user is officer - show global log
   -- Otherwise show personal log
-  local isOfficer = (CanEditOfficerNote and CanEditOfficerNote()) or false
+  local isOfficer = false
+  if CanEditOfficerNote then
+    -- call safely in case the API throws; pcall returns (ok, result)
+    local ok, res = pcall(CanEditOfficerNote)
+    if ok and res then
+      isOfficer = true
+    end
+  end
+
   if isOfficer then
     -- {timestamp,line}
     return self:reverse(GuildRoll_log)
   else
     -- Show personal log for current player
-    local playerName = UnitName("player")
+    local playerName = UnitName("player") or UnitName("player") or "player"
     local personalLog = GuildRoll_personalLogs[playerName] or {}
     return self:reverse(personalLog)
   end
@@ -422,5 +430,5 @@ function GuildRoll:SavePersonalLog(name)
   end
 end
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_disc[...]
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,Guild_disc[...]
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs,GuildRoll_personalLogSaved,GuildRoll_personalLogs
