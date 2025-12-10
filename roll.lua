@@ -5,6 +5,7 @@ GuildRoll_showRollWindow = GuildRoll_showRollWindow == nil and true or GuildRoll
 GuildRoll_CSRThreshold = GuildRoll_CSRThreshold or 3
 
 -- Helper: Check if player has permission to view CSR based on rank index
+-- Robust version that handles stale/empty guild roster, strips realm names, compares rankIndex safely
 local function PlayerHasCSRPermission()
     if not IsInGuild() then
         return false
@@ -12,24 +13,33 @@ local function PlayerHasCSRPermission()
     
     local threshold = tonumber(GuildRoll_CSRThreshold) or 3
     local playerName = UnitName("player")
+    -- Strip realm suffix from player name
+    if playerName then
+        playerName = string.gsub(playerName, "%-[^%-]+$", "")
+    end
     
-    -- Ensure guild roster is available
+    -- Ensure guild roster is available, wrapped in pcall for safety
     local numMembers = GetNumGuildMembers()
     if numMembers == 0 then
-        GuildRoster()
-        return false
+        pcall(GuildRoster)
+        return false -- Roster not yet available, will rebuild on GUILD_ROSTER_UPDATE
     end
     
     -- Find player in guild roster
     for i = 1, numMembers do
+        -- GetGuildRosterInfo may return different number of values in different WoW versions
+        -- We only need name, rank, and rankIndex (first 3 return values)
         local name, rank, rankIndex = GetGuildRosterInfo(i)
+        
         -- Strip realm suffix if present
         if name then
             name = string.gsub(name, "%-[^%-]+$", "")
         end
         
-        if name == playerName then
-            return rankIndex <= threshold
+        -- Compare names and check rank index
+        if name == playerName and rankIndex then
+            -- Safely compare numeric rankIndex
+            return tonumber(rankIndex) <= threshold
         end
     end
     

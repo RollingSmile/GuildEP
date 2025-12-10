@@ -320,7 +320,12 @@ function GuildRoll:buildMenu()
       get = function() return not not GuildRoll_raidonly end,
       set = function(v) 
         GuildRoll_raidonly = not GuildRoll_raidonly
+        -- Trigger local UI refresh
         GuildRoll:SetRefresh(true)
+        -- Share settings to guild if admin
+        if GuildRoll and GuildRoll.shareSettings then
+          GuildRoll:shareSettings()
+        end
       end,
     }
     options.args["report_channel"] = {
@@ -330,7 +335,13 @@ function GuildRoll:buildMenu()
       order = 95,
       hidden = function() return not (admin()) end,
       get = function() return GuildRoll_saychannel end,
-      set = function(v) GuildRoll_saychannel = v end,
+      set = function(v) 
+        GuildRoll_saychannel = v
+        -- Share settings to guild if admin
+        if GuildRoll and GuildRoll.shareSettings then
+          GuildRoll:shareSettings()
+        end
+      end,
       validate = { "PARTY", "RAID", "GUILD", "OFFICER" },
     }    
     options.args["decay"] = {
@@ -399,9 +410,13 @@ function GuildRoll:buildMenu()
       get = function() return tonumber(GuildRoll_CSRThreshold) or 3 end,
       set = function(v) 
         GuildRoll_CSRThreshold = math.floor(v)
-        -- Trigger roll UI rebuild if available
+        -- Trigger local roll UI rebuild immediately
         if GuildRoll and GuildRoll.RebuildRollOptions then
           GuildRoll:RebuildRollOptions()
+        end
+        -- Share settings to guild if admin
+        if GuildRoll and GuildRoll.shareSettings then
+          GuildRoll:shareSettings()
         end
       end,
       min = 0,
@@ -758,6 +773,13 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
   if sender == self._playerName then return end -- we don't care for messages from ourselves
   local name_g,class,rank = self:verifyGuildMember(sender,true)
   if not (name_g) then return end -- only accept messages from guild members
+  
+  -- Handle SHARE: messages (new admin settings broadcast)
+  if message and string.find(message, "^SHARE:") then
+    handleSharedSettings(message, sender)
+    return
+  end
+  
   local who,what,amount
   for name,epgp,change in string.gfind(message,"([^;]+);([^;]+);([^;]+)") do
     who=name
@@ -865,11 +887,163 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
   end
 end
 
+-- Handler for SHARE: messages containing admin settings
+-- Parses and applies received settings locally, triggers UI updates
+-- message: payload like "SHARE:CSR=3;RO=1;DC=0.5;MIN=100;ALT=1.0;SC=GUILD"
+-- sender: player name who sent the message
+local function handleSharedSettings(message, sender)
+  if not message or not string.find(message, "^SHARE:") then
+    return
+  end
+  
+  -- Don't process our own messages (already handled in addonComms)
+  if sender == GuildRoll._playerName then
+    return
+  end
+  
+  -- Parse the SHARE payload
+  local payload = string.sub(message, 7) -- Remove "SHARE:" prefix
+  
+  local settings = {}
+  for pair in string.gfind(payload, "([^;]+)") do
+    local key, value = string.match(pair, "^([^=]+)=(.+)$")
+    if key and value then
+      -- Unescape special chars
+      value = string.gsub(value, "%%3D", "=")
+      value = string.gsub(value, "%%3B", ";")
+      settings[key] = value
+    end
+  end
+  
+  -- Track what changed for notification
+  local changed = false
+  
+  -- Apply CSR threshold
+  if settings.CSR then
+    local csr = tonumber(settings.CSR)
+    if csr and csr ~= GuildRoll_CSRThreshold then
+      GuildRoll_CSRThreshold = csr
+      changed = true
+    end
+  end
+  
+  -- Apply raid_only
+  if settings.RO then
+    local ro = (settings.RO == "1")
+    if ro ~= GuildRoll_raidonly then
+      GuildRoll_raidonly = ro
+      changed = true
+    end
+  end
+  
+  -- Apply decay
+  if settings.DC then
+    local dc = tonumber(settings.DC)
+    if dc and dc ~= GuildRoll_decay then
+      GuildRoll_decay = dc
+      changed = true
+    end
+  end
+  
+  -- Apply minimum EP
+  if settings.MIN then
+    local minep = tonumber(settings.MIN)
+    if minep and minep ~= GuildRoll_minPE then
+      GuildRoll_minPE = minep
+      changed = true
+    end
+  end
+  
+  -- Apply alt percent
+  if settings.ALT then
+    local alt = tonumber(settings.ALT)
+    if alt and alt ~= GuildRoll_altpercent then
+      GuildRoll_altpercent = alt
+      changed = true
+    end
+  end
+  
+  -- Apply report channel
+  if settings.SC then
+    if settings.SC ~= GuildRoll_saychannel then
+      GuildRoll_saychannel = settings.SC
+      changed = true
+    end
+  end
+  
+  -- If anything changed, update UI
+  if changed then
+    -- Request guild roster update (wrapped in pcall for safety)
+    pcall(GuildRoster)
+    
+    -- Rebuild roll options to update CSR button visibility
+    if GuildRoll.RebuildRollOptions then
+      pcall(GuildRoll.RebuildRollOptions, GuildRoll)
+    end
+    
+    -- Refresh standings tablet
+    if GuildRoll_standings and GuildRoll_standings.Refresh then
+      pcall(GuildRoll_standings.Refresh, GuildRoll_standings)
+    end
+    
+    -- Refresh logs tablet
+    if GuildRoll_logs and GuildRoll_logs.Refresh then
+      pcall(GuildRoll_logs.Refresh, GuildRoll_logs)
+    end
+    
+    -- Trigger general refresh
+    if GuildRoll.SetRefresh then
+      pcall(GuildRoll.SetRefresh, GuildRoll, true)
+    end
+    
+    -- Notify user of settings update
+    if GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(string.format("Admin settings updated from %s", sender))
+    end
+  end
+end
+
+-- Share admin settings to guild members via addon message
+-- Broadcasts key admin settings (CSR threshold, raid_only, decay, min EP, alt percent, report channel)
+-- force: if true, bypasses permission check and throttle
 function GuildRoll:shareSettings(force)
+  -- Check permission: only guild leader or officer with note edit permission can share
+  if not force and not IsGuildLeader() and not (CanEditOfficerNote and CanEditOfficerNote()) then
+    return
+  end
+  
   local now = GetTime()
+  -- Throttle: don't send more than once every 30 seconds unless forced
   if self._lastSettingsShare == nil or (now - self._lastSettingsShare > 30) or (force) then
     self._lastSettingsShare = now
-    local addonMsg = string.format("SETTINGS;%s:%s:%s:%s:%s:%s;1",0,0,GuildRoll_decay,GuildRoll_minPE,tostring(GuildRollAltspool),GuildRoll_altpercent)
+    
+    -- Build compact payload with admin settings
+    -- Format: SHARE:CSR=3;RO=1;DC=0.5;MIN=100;ALT=1.0;SC=GUILD
+    local csr = tonumber(GuildRoll_CSRThreshold) or 3
+    local ro = GuildRoll_raidonly and 1 or 0
+    local dc = GuildRoll_decay or self.VARS.decay
+    local minep = GuildRoll_minPE or self.VARS.minPE
+    local alt = GuildRoll_altpercent or 1.0
+    local sc = GuildRoll_saychannel or "GUILD"
+    
+    -- Escape special chars (= and ;) in string values if needed
+    sc = string.gsub(sc, "=", "%%3D")
+    sc = string.gsub(sc, ";", "%%3B")
+    
+    local payload = string.format("SHARE:CSR=%d;RO=%d;DC=%s;MIN=%s;ALT=%s;SC=%s",
+      csr, ro, tostring(dc), tostring(minep), tostring(alt), sc)
+    
+    -- Use existing addon prefix or fallback
+    local prefix = self.VARS.prefix or "GuildRoll"
+    
+    -- Send via addon message with pcall for safety
+    local success, err = pcall(SendAddonMessage, prefix, payload, "GUILD")
+    if not success then
+      self:debugPrint("Failed to send settings: " .. tostring(err))
+    end
+    
+    -- Also send legacy SETTINGS message for backwards compatibility
+    local addonMsg = string.format("SETTINGS;%s:%s:%s:%s:%s:%s;1",0,0,dc,minep,tostring(GuildRollAltspool),alt)
     self:addonMessage(addonMsg,"GUILD")
   end
 end
