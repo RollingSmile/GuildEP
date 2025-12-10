@@ -4,7 +4,7 @@ world of warcraft addon data
 ## Author: RollingSmile
 ## X-Website: https://github.com/RollingSmile/GuildEP
 ## X-Category: Guild
-## X-Credits: guildep,Roadblock, Qcat(zhCN), Excinerus
+## X-Credits: Roadblock, Qcat, Excinerus
 ## Version: 1.0
 ## X-Alpha: Test
 ## OptionalDeps: Ace2
