@@ -2184,9 +2184,14 @@ end
 function GuildRoll:addStructuredLogEntry(entry)
   if not entry then return end
   
-  -- Initialize adminLog if needed
+  -- Initialize adminLog if needed (safety check)
   if not GuildRoll_adminLog then
     GuildRoll_adminLog = {}
+  end
+  
+  -- Initialize legacy log if needed
+  if not GuildRoll_log then
+    GuildRoll_log = {}
   end
   
   -- Check for duplicate by id
@@ -2277,17 +2282,20 @@ function GuildRoll:handleAdminLogMessage(message, sender)
   
   if msgType == "ADD" then
     -- ADMINLOG;ADD;id;ts;admin;target;ep;zone;action;raw
-    local parts = self:strsplitT(";", message)
-    if table.getn(parts) >= 9 then
+    -- Parse carefully since raw may contain escaped semicolons
+    local pattern = "^ADMINLOG;ADD;([^;]*);([^;]*);([^;]*);([^;]*);([^;]*);([^;]*);([^;]*);(.*)$"
+    local id, ts, admin, target, ep, zone, action, raw = string.match(message, pattern)
+    
+    if id and ts and admin and target and ep and zone and action then
       local entry = {
-        id = parts[3],
-        ts = parts[4],
-        admin = parts[5],
-        target = parts[6],
-        ep = tonumber(parts[7]) or 0,
-        zone = parts[8],
-        action = parts[9],
-        raw = parts[10] or ""
+        id = id,
+        ts = ts,
+        admin = admin,
+        target = target,
+        ep = tonumber(ep) or 0,
+        zone = zone,
+        action = action,
+        raw = raw or ""
       }
       -- Unescape semicolons in raw message
       entry.raw = string.gsub(entry.raw, "\\;", ";")
