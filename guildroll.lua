@@ -1529,7 +1529,7 @@ function GuildRoll:givename_ep(getname,ep,block) -- awards ep to a single charac
   -- Create structured admin log entry
   local zoneName = GetRealZoneText() or ""
   local zoneCode = self:getZoneCode(zoneName)
-  local action = ep < 0 and "PENALTY" or "MANUAL_EDIT"
+  local action = ep < 0 and "PENALTY" or "ADD_EP"
   local rawMsg = string.format(L["Giving %d MainStanding to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
   if ep < 0 then
     rawMsg = string.format(L["%s MainStanding Penalty to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
