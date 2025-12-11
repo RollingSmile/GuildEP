@@ -137,8 +137,6 @@ Results will print here when done.]],
   ["Invalid EP value entered."] = true,
   ["EP value out of range (%s to %s)"] = true,
   ["You don't have permission to award EP."] = true,
-  ["Invalid GP value entered."] = true,
-  ["GP value out of range (%s to %s)"] = true,
   -- StaticPopup prompts
   ["Enter EP to award to raid members:"] = true,
   ["Enter number of weeks you SR this item (0..15):"] = true,
