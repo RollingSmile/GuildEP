@@ -1096,81 +1096,56 @@ end
 --
 -- Testing: To verify this fix, apply it and /reload in a client that previously crashed.
 -- Have an admin change CSR threshold and verify no errors occur and UI updates correctly.
+-- Handler for SHARE: messages containing admin settings
+-- Robust, defensive implementation compatible with Lua 5.0/5.1 environments
 handleSharedSettings = function(message, sender)
-  -- Defensive binding: use _G.string if available, fall back to local string table
-  -- Note: Even if gstring is partially corrupted, individual function checks below
-  -- will catch missing functions and use appropriate fallbacks
   local gstring = (_G and _G.string) or string
-  if not gstring then
-    -- Catastrophic failure: no string functions available at all
-    return
-  end
-  
-  -- Safe check for SHARE: prefix
+  if not gstring then return end
+
   local find_func = gstring.find
-  if not message or not find_func or not find_func(message, "^SHARE:") then
-    return
-  end
-  
-  -- Don't process our own messages (already handled in addonComms)
-  if sender == GuildRoll._playerName then
-    return
-  end
-  
-  -- Parse the SHARE payload
+  if not message or not find_func or not find_func(message, "^SHARE:") then return end
+  if sender == GuildRoll._playerName then return end
+
   local sub_func = gstring.sub
-  if not sub_func then
-    return
-  end
-  local payload = sub_func(message, 7) -- Remove "SHARE:" prefix
-  
+  if not sub_func then return end
+  local payload = sub_func(message, 7)
+
   local settings = {}
-  
-  -- Iterate over key=value pairs separated by semicolons
-  -- Try gmatch first (newer Lua), fall back to gfind (Lua 5.0)
   local iterator_func = gstring.gmatch or gstring.gfind
   if iterator_func then
     for pair in iterator_func(payload, "([^;]+)") do
       local key, value
-      
-      -- Try to extract key=value using match
       local match_func = gstring.match
       if match_func then
         key, value = match_func(pair, "^([^=]+)=(.+)$")
       else
-        -- Fallback: use find to locate the = separator
         local eq_pos = find_func and find_func(pair, "=", 1, true)
-        if eq_pos and eq_pos > 1 and eq_pos < #pair then
+        if eq_pos and eq_pos > 1 and eq_pos < string.len(pair) then
           key = sub_func(pair, 1, eq_pos - 1)
           value = sub_func(pair, eq_pos + 1)
         end
       end
-      
       if key and value then
-        -- Unescape special chars (%%3D -> =, %%3B -> ;)
         local gsub_func = gstring.gsub
         if gsub_func then
           value = gsub_func(value, "%%3D", "=")
           value = gsub_func(value, "%%3B", ";")
         end
-        -- If gsub not available, leave value as-is (raw)
         settings[key] = value
       end
     end
   else
-    -- No iterator available, manual parsing as last resort
+    -- manual parse fallback using string.len instead of '#'
     local pos = 1
-    while pos <= #payload do
+    local payload_len = string.len(payload)
+    while pos <= payload_len do
       local semi_pos = find_func and find_func(payload, ";", pos, true)
-      local pair_end = semi_pos or (#payload + 1)
+      local pair_end = semi_pos or (payload_len + 1)
       local pair = sub_func(payload, pos, pair_end - 1)
-      
       local eq_pos = find_func and find_func(pair, "=", 1, true)
-      if eq_pos and eq_pos > 1 and eq_pos < #pair then
+      if eq_pos and eq_pos > 1 and eq_pos < string.len(pair) then
         local key = sub_func(pair, 1, eq_pos - 1)
         local value = sub_func(pair, eq_pos + 1)
-        
-        -- Unescape if gsub available
         local gsub_func = gstring.gsub
         if gsub_func then
           value = gsub_func(value, "%%3D", "=")
@@ -1178,114 +1153,29 @@ handleSharedSettings = function(message, sender)
         end
         settings[key] = value
       end
-      
       pos = pair_end + 1
     end
   end
-  
-  -- Track what changed for notification
+
   local changed = false
-  
-  -- Apply CSR threshold
   if settings.CSR then
     local csr
-    if settings.CSR == "NONE" then
-      csr = nil
-    else
-      csr = tonumber(settings.CSR)
-    end
-    if csr ~= GuildRoll_CSRThreshold then
-      GuildRoll_CSRThreshold = csr
-      changed = true
-    end
+    if settings.CSR == "NONE" then csr = nil else csr = tonumber(settings.CSR) end
+    if csr ~= GuildRoll_CSRThreshold then GuildRoll_CSRThreshold = csr; changed = true end
   end
-  
-  -- Apply raid_only
-  if settings.RO then
-    local ro = (settings.RO == "1")
-    if ro ~= GuildRoll_raidonly then
-      GuildRoll_raidonly = ro
-      changed = true
-    end
-  end
-  
-  -- Apply decay
-  if settings.DC then
-    local dc = tonumber(settings.DC)
-    if dc and dc ~= GuildRoll_decay then
-      GuildRoll_decay = dc
-      changed = true
-    end
-  end
-  
-  -- Apply minimum EP
-  if settings.MIN then
-    local minep = tonumber(settings.MIN)
-    if minep and minep ~= GuildRoll_minPE then
-      GuildRoll_minPE = minep
-      changed = true
-    end
-  end
-  
-  -- Apply alt percent
-  if settings.ALT then
-    local alt = tonumber(settings.ALT)
-    if alt and alt ~= GuildRoll_altpercent then
-      GuildRoll_altpercent = alt
-      changed = true
-    end
-  end
-  
-  -- Apply report channel
-  if settings.SC then
-    if settings.SC ~= GuildRoll_saychannel then
-      GuildRoll_saychannel = settings.SC
-      changed = true
-    end
-  end
-  
-  -- If anything changed, update UI
+  if settings.RO then local ro = (settings.RO == "1") if ro ~= GuildRoll_raidonly then GuildRoll_raidonly = ro; changed = true end end
+  if settings.DC then local dc = tonumber(settings.DC) if dc and dc ~= GuildRoll_decay then GuildRoll_decay = dc; changed = true end end
+  if settings.MIN then local minep = tonumber(settings.MIN) if minep and minep ~= GuildRoll_minPE then GuildRoll_minPE = minep; changed = true end end
+  if settings.ALT then local alt = tonumber(settings.ALT) if alt and alt ~= GuildRoll_altpercent then GuildRoll_altpercent = alt; changed = true end end
+  if settings.SC then if settings.SC ~= GuildRoll_saychannel then GuildRoll_saychannel = settings.SC; changed = true end end
+
   if changed then
-    -- Request guild roster update (wrapped in pcall for safety)
-    pcall(GuildRoster)
-    
-    -- Rebuild roll options to update CSR button visibility
-    if GuildRoll.RebuildRollOptions then
-      pcall(GuildRoll.RebuildRollOptions, GuildRoll)
-    end
-    
-    -- Refresh standings tablet
-    if GuildRoll_standings and GuildRoll_standings.Refresh then
-      pcall(GuildRoll_standings.Refresh, GuildRoll_standings)
-    end
-    
-    -- Refresh logs tablet
-    if GuildRoll_logs and GuildRoll_logs.Refresh then
-      pcall(GuildRoll_logs.Refresh, GuildRoll_logs)
-    end
-    
-    -- Trigger general refresh
-    if GuildRoll.SetRefresh then
-      pcall(GuildRoll.SetRefresh, GuildRoll, true)
-    end
-    
-    -- Notify user of settings update
-    if GuildRoll.defaultPrint then
-      -- Try format function, fall back to concatenation if unavailable
-      local format_func = (gstring and gstring.format) or (string and string.format)
-      if format_func then
-        local success, msg = pcall(format_func, "Admin settings updated from %s", sender)
-        if success then
-          GuildRoll:defaultPrint(msg)
-        else
-          -- Format failed, use concatenation
-          GuildRoll:defaultPrint("Admin settings updated from " .. (sender or "unknown"))
-        end
-      else
-        -- No format function available, use concatenation
-        GuildRoll:defaultPrint("Admin settings updated from " .. (sender or "unknown"))
-      end
-    end
+    pcall(function() GuildRoster() end)
+    if GuildRoll.RebuildRollOptions then pcall(GuildRoll.RebuildRollOptions, GuildRoll) end
+    if GuildRoll_standings and GuildRoll_standings.Refresh then pcall(GuildRoll_standings.Refresh, GuildRoll_standings) end
+    if GuildRoll_logs and GuildRoll_logs.Refresh then pcall(GuildRoll_logs.Refresh, GuildRoll_logs) end
+    if GuildRoll.SetRefresh then pcall(GuildRoll.SetRefresh, GuildRoll, true) end
+    if GuildRoll.defaultPrint then GuildRoll:defaultPrint(("Admin settings updated from %s"):format(sender)) end
   end
 end
 
