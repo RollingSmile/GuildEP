@@ -1370,23 +1370,23 @@ function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
     for i = 1, GetNumRaidMembers(true) do
       local name, rank, subgroup, level, class, fileName, zone, online, isDead = GetRaidRosterInfo(i)
       if level >= GuildRoll.VARS.minlevel then
-        -- Skip if already awarded in this call
-        if not GuildRoll:TFind(award, name) then
-          local actualName = name
-          local actualEP = ep
-          local postfix = ""
-          
-          -- Handle alt -> main mapping if Altspool enabled
-          if (GuildRollAltspool) then
-            local main = self:parseAlt(name)
-            if (main) then
-              local alt = name
-              actualName = main
-              actualEP = self:num_round(GuildRoll_altpercent*ep)
-              postfix = string.format(L[", %s\'s Main."],alt)
-            end
+        local actualName = name
+        local actualEP = ep
+        local postfix = ""
+        
+        -- Handle alt -> main mapping if Altspool enabled
+        if (GuildRollAltspool) then
+          local main = self:parseAlt(name)
+          if (main) then
+            local alt = name
+            actualName = main
+            actualEP = self:num_round(GuildRoll_altpercent*ep)
+            postfix = string.format(L[", %s\'s Main."],alt)
           end
-          
+        end
+        
+        -- Skip if already awarded in this call (check the actual target name)
+        if not GuildRoll:TFind(award, actualName) then
           -- Get old EP and calculate new EP
           local old = (self:get_ep_v3(actualName) or 0)
           local newep = actualEP + old
