@@ -1089,8 +1089,24 @@ end
 -- Parses and applies received settings locally, triggers UI updates
 -- message: payload like "SHARE:CSR=3;RO=1;DC=0.5;MIN=100;ALT=1.0;SC=GUILD"
 -- sender: player name who sent the message
+-- Handles SHARE messages from admins to synchronize settings across clients.
+-- Uses defensive programming to handle environments where the global string table
+-- may be partially overwritten or missing functions (e.g., due to addon conflicts).
+-- This prevents crashes when parsing SHARE:CSR=...;RO=...;DC=...;MIN=...;ALT=...;SC=... payloads.
+--
+-- Testing: To verify this fix, apply it and /reload in a client that previously crashed.
+-- Have an admin change CSR threshold and verify no errors occur and UI updates correctly.
 handleSharedSettings = function(message, sender)
-  if not message or not string.find(message, "^SHARE:") then
+  -- Defensive binding: use _G.string if available, fall back to local string table
+  local gstring = (_G and _G.string) or string
+  if not gstring then
+    -- Catastrophic failure: no string functions available at all
+    return
+  end
+  
+  -- Safe check for SHARE: prefix
+  local find_func = gstring.find
+  if not message or not find_func or not find_func(message, "^SHARE:") then
     return
   end
   
@@ -1100,16 +1116,68 @@ handleSharedSettings = function(message, sender)
   end
   
   -- Parse the SHARE payload
-  local payload = string.sub(message, 7) -- Remove "SHARE:" prefix
+  local sub_func = gstring.sub
+  if not sub_func then
+    return
+  end
+  local payload = sub_func(message, 7) -- Remove "SHARE:" prefix
   
   local settings = {}
-  for pair in string.gfind(payload, "([^;]+)") do
-    local key, value = string.match(pair, "^([^=]+)=(.+)$")
-    if key and value then
-      -- Unescape special chars
-      value = string.gsub(value, "%%3D", "=")
-      value = string.gsub(value, "%%3B", ";")
-      settings[key] = value
+  
+  -- Iterate over key=value pairs separated by semicolons
+  -- Try gmatch first (newer Lua), fall back to gfind (Lua 5.0)
+  local iterator_func = gstring.gmatch or gstring.gfind
+  if iterator_func then
+    for pair in iterator_func(payload, "([^;]+)") do
+      local key, value
+      
+      -- Try to extract key=value using match
+      local match_func = gstring.match
+      if match_func then
+        key, value = match_func(pair, "^([^=]+)=(.+)$")
+      else
+        -- Fallback: use find to locate the = separator
+        local eq_pos = find_func and find_func(pair, "=", 1, true)
+        if eq_pos and eq_pos > 1 and eq_pos < #pair then
+          key = sub_func(pair, 1, eq_pos - 1)
+          value = sub_func(pair, eq_pos + 1)
+        end
+      end
+      
+      if key and value then
+        -- Unescape special chars (%%3D -> =, %%3B -> ;)
+        local gsub_func = gstring.gsub
+        if gsub_func then
+          value = gsub_func(value, "%%3D", "=")
+          value = gsub_func(value, "%%3B", ";")
+        end
+        -- If gsub not available, leave value as-is (raw)
+        settings[key] = value
+      end
+    end
+  else
+    -- No iterator available, manual parsing as last resort
+    local pos = 1
+    while pos <= #payload do
+      local semi_pos = find_func and find_func(payload, ";", pos, true)
+      local pair_end = semi_pos or (#payload + 1)
+      local pair = sub_func(payload, pos, pair_end - 1)
+      
+      local eq_pos = find_func and find_func(pair, "=", 1, true)
+      if eq_pos and eq_pos > 1 and eq_pos < #pair then
+        local key = sub_func(pair, 1, eq_pos - 1)
+        local value = sub_func(pair, eq_pos + 1)
+        
+        -- Unescape if gsub available
+        local gsub_func = gstring.gsub
+        if gsub_func then
+          value = gsub_func(value, "%%3D", "=")
+          value = gsub_func(value, "%%3B", ";")
+        end
+        settings[key] = value
+      end
+      
+      pos = pair_end + 1
     end
   end
   
@@ -1201,7 +1269,12 @@ handleSharedSettings = function(message, sender)
     
     -- Notify user of settings update
     if GuildRoll.defaultPrint then
-      GuildRoll:defaultPrint(string.format("Admin settings updated from %s", sender))
+      local format_func = gstring.format or string.format
+      if format_func then
+        GuildRoll:defaultPrint(format_func("Admin settings updated from %s", sender))
+      else
+        GuildRoll:defaultPrint("Admin settings updated from " .. (sender or "unknown"))
+      end
     end
   end
 end
