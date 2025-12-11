@@ -211,6 +211,17 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
       end,
       order = 12,
     },
+    debuglog = {
+      type = "execute",
+      name = "Debug Admin Log",
+      desc = "Print structured admin log entries for debugging",
+      func = function()
+        if GuildRoll and GuildRoll.debugAdminLog then
+          pcall(function() GuildRoll:debugAdminLog() end)
+        end
+      end,
+      order = 13,
+    },
   }},
 {type = "group", handler = GuildRoll, args = {
     show = {
@@ -2268,6 +2279,42 @@ function GuildRoll:requestAdminLog()
   local currentCount = table.getn(GuildRoll_adminLog or {})
   local msg = string.format("ADMINLOG;REQ;%d", currentCount)
   self:addonMessage(msg, "GUILD")
+end
+
+-- Debug function to print structured admin log entries
+function GuildRoll:debugAdminLog()
+  local ok, canEdit = pcall(CanEditOfficerNote)
+  if not ok or not canEdit then
+    self:defaultPrint("You must be an admin to view the structured log.")
+    return
+  end
+  
+  if not GuildRoll_adminLog or table.getn(GuildRoll_adminLog) == 0 then
+    self:defaultPrint("No structured admin log entries found.")
+    return
+  end
+  
+  self:defaultPrint(string.format("=== Structured Admin Log (%d entries) ===", table.getn(GuildRoll_adminLog)))
+  
+  -- Show last 10 entries
+  local startIdx = math.max(1, table.getn(GuildRoll_adminLog) - 9)
+  for i = startIdx, table.getn(GuildRoll_adminLog) do
+    local entry = GuildRoll_adminLog[i]
+    if entry then
+      local msg = string.format("[%s] %s: %s -> %s (%+d EP, %s, %s)",
+        entry.ts or "?",
+        entry.admin or "?",
+        entry.action or "?",
+        entry.target or "?",
+        entry.ep or 0,
+        entry.zone or "?",
+        entry.id or "?"
+      )
+      self:defaultPrint(msg)
+    end
+  end
+  
+  self:defaultPrint("=== End of Admin Log ===")
 end
 
 -- Handle incoming admin log messages
