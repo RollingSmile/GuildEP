@@ -109,6 +109,35 @@ local function _insertTagBeforeEP(officernote, tag)
   end
 end
 
+-- Helper: attempt to run main tag migration with throttle check
+-- Returns true if migration was attempted, false if throttled
+local function _attemptThrottledMigration(self)
+  -- Check throttle: don't run more often than once every 30 seconds
+  local now = GetTime()
+  if self._lastMigrateRun and (now - self._lastMigrateRun) < 30 then
+    return false
+  end
+  
+  -- Set timestamp before attempting to prevent rapid retries on failure
+  self._lastMigrateRun = now
+  
+  -- Verify guild roster is available
+  local ok, numMembers = pcall(function()
+    if not IsInGuild() then return 0 end
+    return GetNumGuildMembers(1) or 0
+  end)
+  
+  if ok and numMembers > 0 then
+    -- Run migration
+    pcall(function()
+      GuildRoll:MovePublicMainTagsToOfficerNotes()
+    end)
+    return true
+  end
+  
+  return false
+end
+
 local options
 do
   for i=1,40 do
@@ -384,7 +413,7 @@ function GuildRoll:buildMenu()
       name = "Migrate Main Tags",
       desc = "Move {MainCharacter} tags from public notes to officer notes (GM only).",
       order = 75,
-      hidden = function() return not (IsGuildLeader and IsGuildLeader()) end,
+      hidden = function() return not IsGuildLeader() end,
       func = function() 
         GuildRoll:MovePublicMainTagsToOfficerNotes()
       end,
@@ -863,25 +892,7 @@ function GuildRoll:delayedInit()
     
     -- Auto-run migration 5 seconds after init for admins
     self:ScheduleEvent("guildroll_auto_migrate", function()
-      -- Check throttle: don't run more often than once every 30 seconds
-      local now = GetTime()
-      if self._lastMigrateRun and (now - self._lastMigrateRun) < 30 then
-        return
-      end
-      
-      -- Verify guild roster is available
-      local ok, numMembers = pcall(function()
-        if not IsInGuild() then return 0 end
-        return GetNumGuildMembers(1) or 0
-      end)
-      
-      if ok and numMembers > 0 then
-        -- Run migration
-        pcall(function()
-          GuildRoll:MovePublicMainTagsToOfficerNotes()
-        end)
-        self._lastMigrateRun = now
-      end
+      _attemptThrottledMigration(GuildRoll)
     end, 5)
   end
   GuildRollMSG.delayedinit = true
@@ -1007,26 +1018,8 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
       return
     end
     
-    -- Check throttle: don't run more often than once every 30 seconds
-    local now = GetTime()
-    if self._lastMigrateRun and (now - self._lastMigrateRun) < 30 then
-      return
-    end
-    
-    -- Verify guild roster is available
-    local ok, numMembers = pcall(function()
-      if not IsInGuild() then return 0 end
-      return GetNumGuildMembers(1) or 0
-    end)
-    
-    if ok and numMembers > 0 then
-      -- Run migration
-      pcall(function()
-        GuildRoll:MovePublicMainTagsToOfficerNotes()
-      end)
-      self._lastMigrateRun = now
-    end
-    
+    -- Attempt throttled migration
+    _attemptThrottledMigration(self)
     return
   end
   
