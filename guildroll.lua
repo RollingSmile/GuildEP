@@ -96,8 +96,14 @@ end
 -- tag: tag to insert
 -- Returns: new officer note with tag inserted before {EP:GP} pattern
 local function _insertTagBeforeEP(officernote, tag)
-  officernote = officernote or ""
-  tag = tag or ""
+  -- Ensure inputs are strings
+  if type(officernote) ~= "string" then officernote = "" end
+  if type(tag) ~= "string" then tag = "" end
+  
+  -- Return early if tag is empty
+  if tag == "" then
+    return officernote
+  end
   
   -- Find {EP:GP} pattern (e.g., {123:456})
   local prefix, epgp, postfix = string.match(officernote, "^(.-)({%d+:%d+})(.*)$")
@@ -2019,35 +2025,53 @@ function GuildRoll:MovePublicMainTagsToOfficerNotes()
   local movedCount = 0
   local numMembers = GetNumGuildMembers(1)
   
+  -- Validate numMembers is a valid number
+  if not numMembers or type(numMembers) ~= "number" or numMembers < 1 then
+    return 0
+  end
+  
   for i = 1, numMembers do
-    local name, _, _, _, _, _, publicNote, officerNote, _, _ = GetGuildRosterInfo(i)
-    publicNote = publicNote or ""
-    officerNote = officerNote or ""
+    -- Wrap GetGuildRosterInfo in pcall for safety
+    local success, name, r2, r3, r4, r5, r6, publicNote, officerNote, r9, r10 = pcall(function()
+      return GetGuildRosterInfo(i)
+    end)
     
-    -- Check if public note contains a main tag pattern {name} (min 2 chars)
-    local mainTag = string.match(publicNote, "({%a%a%a*})")
-    if mainTag then
-      -- Insert main tag before {EP:GP} in officer note first (to avoid data loss)
-      local newOfficer = _insertTagBeforeEP(officerNote, mainTag)
+    -- Process only if GetGuildRosterInfo succeeded and returned valid data
+    if success and name then
+      publicNote = publicNote or ""
+      officerNote = officerNote or ""
       
-      -- Write officer note first (wrapped in pcall for safety)
-      local successOfficer = pcall(function()
-        GuildRosterSetOfficerNote(i, newOfficer, true)
-      end)
-      
-      -- Only remove from public note if officer note write succeeded
-      if successOfficer then
-        movedCount = movedCount + 1
-        
-        -- Escape pattern characters for safe replacement
-        local escapedTag = string.gsub(mainTag, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
-        -- Remove only first occurrence of the main tag from public note
-        local newPublic = string.gsub(publicNote, escapedTag, "", 1)
-        
-        -- Attempt to write public note (removal is best-effort)
-        pcall(function()
-          GuildRosterSetPublicNote(i, newPublic)
-        end)
+      -- Ensure publicNote and officerNote are strings
+      if type(publicNote) == "string" and type(officerNote) == "string" then
+        -- Check if public note contains a main tag pattern {name} (min 2 chars)
+        local mainTag = string.match(publicNote, "({%a%a%a*})")
+        if mainTag and type(mainTag) == "string" and string.len(mainTag) > 2 then
+          -- Insert main tag before {EP:GP} in officer note first (to avoid data loss)
+          local newOfficer = _insertTagBeforeEP(officerNote, mainTag)
+          
+          -- Validate newOfficer is a string before writing
+          if type(newOfficer) == "string" then
+            -- Write officer note first (wrapped in pcall for safety)
+            local successOfficer = pcall(function()
+              GuildRosterSetOfficerNote(i, newOfficer, true)
+            end)
+            
+            -- Only remove from public note if officer note write succeeded
+            if successOfficer then
+              movedCount = movedCount + 1
+              
+              -- Escape pattern characters for safe replacement
+              local escapedTag = string.gsub(mainTag, "([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+              -- Remove only first occurrence of the main tag from public note
+              local newPublic = string.gsub(publicNote, escapedTag, "", 1)
+              
+              -- Attempt to write public note (removal is best-effort)
+              pcall(function()
+                GuildRosterSetPublicNote(i, newPublic)
+              end)
+            end
+          end
+        end
       end
     end
   end

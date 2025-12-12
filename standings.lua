@@ -309,7 +309,7 @@ function GuildRoll_standings:setHideScript()
 end
 
 function GuildRoll_standings:Top()
-  if T:IsRegistered("GuildRoll_standings") and (T.registry.GuildRoll_standings.tooltip) then
+  if T:IsRegistered("GuildRoll_standings") and type(T.registry) == "table" and T.registry.GuildRoll_standings and T.registry.GuildRoll_standings.tooltip then
     T.registry.GuildRoll_standings.tooltip.scroll=0
   end  
 end
