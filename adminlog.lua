@@ -528,17 +528,18 @@ function GuildRoll:AdminLogAddRaid(ep, raid_data)
   end
   
   local playerCount = table.getn(raid_data.players)
+  local adminName = UnitName("player") or "Unknown"
   local actionText
   if ep < 0 then
-    actionText = string.format("[RAID] %d EP Penalty (%d players)", ep, playerCount)
+    actionText = string.format("[RAID] %s: %d EP Penalty (%d players)", adminName, ep, playerCount)
   else
-    actionText = string.format("[RAID] Giving %d EP (%d players)", ep, playerCount)
+    actionText = string.format("[RAID] %s: Giving %d EP (%d players)", adminName, ep, playerCount)
   end
   
   local entry = {
     id = generateEntryId(),
     ts = time(),
-    author = UnitName("player") or "Unknown",
+    author = adminName,
     action = actionText,
     raid_details = {
       ep = ep,
@@ -671,6 +672,25 @@ function GuildRoll_AdminLog:OnEnable()
           "tooltipText", "Refresh admin log display",
           "func", function()
             pcall(function() T:Refresh("GuildRoll_AdminLog") end)
+          end
+        )
+        
+        -- Clear (GuildMaster only)
+        D:AddLine(
+          "text", "Clear",
+          "tooltipText", "Clear all admin log entries (GuildMaster only)",
+          "func", function()
+            StaticPopup_Show("GUILDROLL_ADMINLOG_CLEAR_CONFIRM")
+          end,
+          "disabled", function()
+            local isGuildMaster = false
+            if IsGuildLeader then
+              local ok, result = pcall(function() return IsGuildLeader() end)
+              if ok and result then
+                isGuildMaster = true
+              end
+            end
+            return not isGuildMaster
           end
         )
       end
@@ -871,6 +891,41 @@ StaticPopupDialogs["GUILDROLL_ADMINLOG_SEARCH"] = {
   end,
   timeout = 0,
   exclusive = 1,
+  whileDead = 1,
+  hideOnEscape = 1
+}
+
+-- Static popup for clear confirmation
+StaticPopupDialogs["GUILDROLL_ADMINLOG_CLEAR_CONFIRM"] = {
+  text = "This will permanently delete all Admin Log entries. Only the GuildMaster can do this. Continue?",
+  button1 = TEXT(ACCEPT),
+  button2 = TEXT(CANCEL),
+  OnAccept = function()
+    -- Double-check GuildMaster status
+    local isGuildMaster = false
+    if IsGuildLeader then
+      local ok, result = pcall(function() return IsGuildLeader() end)
+      if ok and result then
+        isGuildMaster = true
+      end
+    end
+    
+    if isGuildMaster then
+      -- Clear all entries
+      GuildRoll_adminLogSaved = {}
+      GuildRoll_adminLogOrder = {}
+      adminLogRuntime = {}
+      expandedRaidEntries = {}
+      
+      -- Refresh UI
+      pcall(function() T:Refresh("GuildRoll_AdminLog") end)
+      
+      GuildRoll:defaultPrint("Admin log cleared.")
+    else
+      GuildRoll:defaultPrint("Only the GuildMaster can clear the admin log.")
+    end
+  end,
+  timeout = 0,
   whileDead = 1,
   hideOnEscape = 1
 }
