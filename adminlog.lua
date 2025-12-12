@@ -842,6 +842,11 @@ function GuildRoll_AdminLog:OnTooltipUpdate()
 end
 
 function GuildRoll_AdminLog:Toggle()
+  -- Defensive check: ensure Tablet is registered before checking if attached
+  if not T:IsRegistered("GuildRoll_AdminLog") then
+    return
+  end
+  
   if T:IsAttached("GuildRoll_AdminLog") then
     pcall(function() T:Detach("GuildRoll_AdminLog") end)
     if T.IsLocked and T:IsLocked("GuildRoll_AdminLog") then
