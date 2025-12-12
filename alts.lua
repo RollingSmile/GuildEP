@@ -29,8 +29,10 @@ GuildRollAlts = GuildRoll:NewModule("GuildRollAlts", "AceDB-2.0")
 function GuildRollAlts:OnEnable()
   if not T:IsRegistered("GuildRollAlts") then
     -- Safe wrapper for D:AddLine to prevent Dewdrop crashes
+    -- Note: In Lua 5.0 (WoW 1.12), varargs (...) cannot be passed directly to pcall.
+    -- We must use unpack(arg) to forward the arguments.
     local function safeAddLine(...)
-      pcall(D.AddLine, D, ...)
+      pcall(D.AddLine, D, unpack(arg))
     end
     
     T:Register("GuildRollAlts",

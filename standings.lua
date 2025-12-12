@@ -206,8 +206,10 @@ end
 function GuildRoll_standings:OnEnable()
   if not T:IsRegistered("GuildRoll_standings") then
     -- Safe wrapper for D:AddLine to prevent Dewdrop crashes
+    -- Note: In Lua 5.0 (WoW 1.12), varargs (...) cannot be passed directly to pcall.
+    -- We must use unpack(arg) to forward the arguments.
     local function safeAddLine(...)
-      pcall(D.AddLine, D, ...)
+      pcall(D.AddLine, D, unpack(arg))
     end
     
     T:Register("GuildRoll_standings",
@@ -418,8 +420,8 @@ function GuildRoll_standings:OnTooltipUpdate()
   -- Create category with 2 columns: Name | EP
   local cat = T:AddCategory(
       "columns", 2,
-      "text",  C:Orange(L["Name"]),   "child_textR",    1, "child_textG",    1, "child_textB",    1, "LEFT",  "LEFT",
-      "text2", C:Orange(L["Main Standing"]),     "child_text2R",   1, "child_text2G",   1, "child_text2B",   1, "RIGHT", "RIGHT"
+      "text",  C:Orange(L["Name"]),   "child_textR",    1, "child_textG",    1, "child_textB",    1, "child_justify", "LEFT",
+      "text2", C:Orange(L["Main Standing"]),     "child_text2R",   1, "child_text2G",   1, "child_text2B",   1, "child_justify2", "RIGHT"
     )
   local t = self:BuildStandingsTable()
   local separator
@@ -464,5 +466,5 @@ function GuildRoll_standings:OnTooltipUpdate()
   end
 end
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,RetR[...]
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_raidonly,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs
