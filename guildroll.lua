@@ -1996,6 +1996,17 @@ end
 -- Logging
 ------------
 function GuildRoll:addToLog(line,skipTime)
+  -- For admins: use the new synchronized AdminLog system
+  if self:IsAdmin() then
+    -- Add to synchronized AdminLog (broadcasts to all admins)
+    if GuildRoll.AdminLogAdd then
+      pcall(function()
+        GuildRoll:AdminLogAdd(line)
+      end)
+    end
+  end
+  
+  -- Always keep local log for backward compatibility and non-admins
   local over = table.getn(GuildRoll_log)-GuildRoll.VARS.maxloglines+1
   if over > 0 then
     for i=1,over do
