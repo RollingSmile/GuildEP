@@ -1363,6 +1363,11 @@ function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
   if GetNumRaidMembers()>0 then
     local award = {}
     local adminName = UnitName("player")
+    local raid_data = {
+      ep = ep,
+      players = {},
+      counts = {}
+    }
     
     for i = 1, GetNumRaidMembers(true) do
       local name, rank, subgroup, level, class, fileName, zone, online, isDead = GetRaidRosterInfo(i)
@@ -1395,17 +1400,21 @@ function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
           local addonMsg = string.format("%s;%s;%s", actualName, "MainStanding", actualEP)
           self:addonMessage(addonMsg, "GUILD")
           
-          -- Add to admin log with RAID tag
-          local logMsg
-          if actualEP < 0 then
-            logMsg = string.format("[RAID] %s: %d EP Penalty to %s%s (Prev: %d, New: %d)", adminName, actualEP, actualName, postfix, old, newep)
-          else
-            logMsg = string.format("[RAID] %s: Giving %d EP to %s%s (Prev: %d, New: %d)", adminName, actualEP, actualName, postfix, old, newep)
-          end
-          self:addToLog(logMsg)
+          -- Add player to raid_data for consolidated log entry
+          table.insert(raid_data.players, actualName)
+          raid_data.counts[actualName] = {old = old, new = newep}
           
           table.insert(award, actualName)
         end
+      end
+    end
+    
+    -- Create a single consolidated raid entry in AdminLog
+    if self:IsAdmin() and table.getn(raid_data.players) > 0 then
+      if GuildRoll.AdminLogAddRaid then
+        pcall(function()
+          GuildRoll:AdminLogAddRaid(ep, raid_data)
+        end)
       end
     end
     
@@ -1697,9 +1706,9 @@ function GuildRoll:OnClick(button)
   -- No permission denied messages for non-admin
   if ctrl and shift and not alt then
     if is_admin then
-      -- Admin: toggle global admin log
-      if GuildRoll_logs and GuildRoll_logs.Toggle then
-        pcall(function() GuildRoll_logs:Toggle() end)
+      -- Admin: toggle new AdminLog module
+      if GuildRoll_AdminLog and GuildRoll_AdminLog.Toggle then
+        pcall(function() GuildRoll_AdminLog:Toggle() end)
       end
     else
       -- Not admin: open Personal Log as fallback (no error message)
@@ -1996,6 +2005,17 @@ end
 -- Logging
 ------------
 function GuildRoll:addToLog(line,skipTime)
+  -- For admins: use the new synchronized AdminLog system
+  if self:IsAdmin() then
+    -- Add to synchronized AdminLog (broadcasts to all admins)
+    if GuildRoll.AdminLogAdd then
+      pcall(function()
+        GuildRoll:AdminLogAdd(line)
+      end)
+    end
+  end
+  
+  -- Always keep local log for backward compatibility and non-admins
   local over = table.getn(GuildRoll_log)-GuildRoll.VARS.maxloglines+1
   if over > 0 then
     for i=1,over do
