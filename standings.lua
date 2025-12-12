@@ -419,7 +419,7 @@ function GuildRoll_standings:OnTooltipUpdate()
   local cat = T:AddCategory(
       "columns", 2,
       "text",  C:Orange(L["Name"]),   "child_textR",    1, "child_textG",    1, "child_textB",    1, "child_justify", "LEFT",
-      "text2", C:Orange(L["Main Standing"]),     "child_text2R",   1, "child_text2G",   1, "child_text2B",   1, "child_justify2", "LEFT"
+      "text2", C:Orange(L["Main Standing"]),     "child_text2R",   1, "child_text2G",   1, "child_text2B",   1, "child_justify2", "RIGHT"
     )
   local t = self:BuildStandingsTable()
   local separator
