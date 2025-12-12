@@ -100,7 +100,7 @@ function GuildRollAlts:setHideScript()
 end
 
 function GuildRollAlts:Top()
-  if T:IsRegistered("GuildRollAlts") and (T.registry.GuildRollAlts.tooltip) then
+  if T:IsRegistered("GuildRollAlts") and type(T.registry) == "table" and T.registry.GuildRollAlts and T.registry.GuildRollAlts.tooltip then
     T.registry.GuildRollAlts.tooltip.scroll=0
   end  
 end

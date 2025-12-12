@@ -153,7 +153,7 @@ function GuildRoll_logs:setHideScript()
 end
 
 function GuildRoll_logs:Top()
-  if T:IsRegistered("GuildRoll_logs") and (T.registry.GuildRoll_logs.tooltip) then
+  if T:IsRegistered("GuildRoll_logs") and type(T.registry) == "table" and T.registry.GuildRoll_logs and T.registry.GuildRoll_logs.tooltip then
     T.registry.GuildRoll_logs.tooltip.scroll=0
   end  
 end
@@ -304,7 +304,7 @@ function GuildRoll_logs:setHideScriptPersonal()
 end
 
 function GuildRoll_logs:TopPersonal()
-  if T:IsRegistered("GuildRoll_personal_logs") and (T.registry.GuildRoll_personal_logs.tooltip) then
+  if T:IsRegistered("GuildRoll_personal_logs") and type(T.registry) == "table" and T.registry.GuildRoll_personal_logs and T.registry.GuildRoll_personal_logs.tooltip then
     T.registry.GuildRoll_personal_logs.tooltip.scroll=0
   end  
 end
