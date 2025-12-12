@@ -59,6 +59,8 @@ end
 function GuildRoll_logs:OnEnable()
   if not T:IsRegistered("GuildRoll_logs") then
     -- Safe wrapper for D:AddLine to prevent Dewdrop crashes
+    -- Note: In Lua 5.0 (WoW 1.12), varargs (...) cannot be passed directly to pcall.
+    -- We must use unpack(arg) to forward the arguments.
     local function safeAddLine(...)
       pcall(D.AddLine, D, unpack(arg))
     end

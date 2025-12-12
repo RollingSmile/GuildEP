@@ -375,6 +375,8 @@ local function handleAdminLogMessage(prefix, message, channel, sender)
   if not message or not string.find(message, "^ADMINLOG;") then return end
   
   -- Normalize sender: remove realm suffix (e.g., Name-Realm -> Name)
+  -- Pattern %-.*$ matches a literal hyphen followed by everything to end of string
+  -- This handles both simple (Name-Realm) and multi-hyphen (Name-Burning-Legion) realm names
   local sender_norm = sender and string.gsub(sender, "%-.*$", "") or sender
   
   -- Verify sender is guild member
