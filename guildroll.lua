@@ -2580,7 +2580,7 @@ StaticPopupDialogs["GUILDROLL_AWARD_EP_MEMBER"] = {
     local data = this.data
     if data and data.memberName and data.epValue then
       local confirmText = string.format(L["Give EP to %s"], data.memberName) .. "\n\n" .. 
-                          string.format("Amount: %d EP", data.epValue)
+                          string.format(L["Amount: %d EP"], data.epValue)
       getglobal(this:GetName().."Text"):SetText(confirmText)
     end
   end,
