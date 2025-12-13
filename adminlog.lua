@@ -656,10 +656,15 @@ function GuildRoll_AdminLog:OnEnable()
             requestAdminLogSnapshot(since_ts)
           end,
           "disabled", function()
-            -- Disable if snapshot in progress or if already up-to-date
+            -- Disable if snapshot in progress
             if snapshotInProgress then
               return true
             end
+            -- If we haven't seen any remote timestamps yet, allow sync
+            if latestRemoteTS == 0 then
+              return false
+            end
+            -- Disable if already up-to-date (remote <= local)
             local localTS = getLocalLatestTS()
             return latestRemoteTS <= localTS
           end
