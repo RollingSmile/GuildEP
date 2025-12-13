@@ -37,7 +37,7 @@ function GuildRollAlts:OnEnable()
     
     T:Register("GuildRollAlts",
       "children", function()
-        T:SetTitle(L["guildroll alts"])
+        T:SetTitle(L["Alts"])
         self:OnTooltipUpdate()
       end,
       "showTitleWhenDetached", true,
