@@ -1763,7 +1763,7 @@ function GuildRoll:OnClick(button)
     if is_admin then
       -- Admin: toggle new AdminLog module
       -- Ensure module is enabled before calling Toggle
-      if GuildRoll_AdminLog and GuildRoll_AdminLog.Toggle then
+      if GuildRoll_AdminLog and GuildRoll_AdminLog.Toggle and GuildRoll:HasModule("GuildRoll_AdminLog") then
         pcall(function()
           GuildRoll:ToggleModuleActive("GuildRoll_AdminLog", true)
           GuildRoll_AdminLog:Toggle()
