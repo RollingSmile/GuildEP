@@ -637,6 +637,19 @@ function GuildRoll:buildMenu()
         if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
       end)
     end
+    options.args["show_all_roll_buttons"] = {
+      type = "toggle",
+      name = L["Show all Roll Button"],
+      desc = "When enabled, show all roll buttons to everyone (Admin only).",
+      order = 130,
+      hidden = function() return not (admin()) end,
+      get = function() return not not GuildRoll_showAllRollButtons end,
+      set = function(v)
+        GuildRoll_showAllRollButtons = v
+        if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
+        if GuildRoll and GuildRoll.shareSettings then GuildRoll:shareSettings(true) end
+      end,
+    }
     options.args["reset"] = {
      type = "execute",
      name = L["Reset Standing"],
@@ -701,6 +714,7 @@ function GuildRoll:OnInitialize() -- ADDON_LOADED (1) unless LoD
   if GuildRoll_altpercent == nil then GuildRoll_altpercent = 1.0 end
   if GuildRoll_looted == nil then GuildRoll_looted = {} end
   if GuildRoll_debug == nil then GuildRoll_debug = {} end
+  if GuildRoll_showAllRollButtons == nil then GuildRoll_showAllRollButtons = false end
   --if GuildRoll_showRollWindow == nil then GuildRoll_showRollWindow = true end
   self:RegisterDB("GuildRoll_fubar")
   self:RegisterDefaults("char",{})
@@ -1220,6 +1234,10 @@ handleSharedSettings = function(message, sender)
   --if settings.MIN then local minep = tonumber(settings.MIN) if minep and minep ~= GuildRoll_minPE then GuildRoll_minPE = minep; changed = true end end
   if settings.ALT then local alt = tonumber(settings.ALT) if alt and alt ~= GuildRoll_altpercent then GuildRoll_altpercent = alt; changed = true end end
   if settings.SC then if settings.SC ~= GuildRoll_saychannel then GuildRoll_saychannel = settings.SC; changed = true end end
+  if settings.SBR then
+    local sbr = settings.SBR == "1"
+    if sbr ~= GuildRoll_showAllRollButtons then GuildRoll_showAllRollButtons = sbr; changed = true end
+  end
 
   if changed then
     pcall(function() GuildRoster() end)
@@ -1247,7 +1265,7 @@ function GuildRoll:shareSettings(force)
     self._lastSettingsShare = now
     
     -- Build compact payload with admin settings
-    -- Format: SHARE:CSR=3;RO=1;DC=0.5;ALT=1.0;SC=GUILD
+    -- Format: SHARE:CSR=3;RO=1;DC=0.5;ALT=1.0;SC=GUILD;SBR=0
     -- CSR can be nil (disabled), use "NONE" to represent this in the payload
     -- MIN removed: Minimum EP is now local to each admin and not shared
     local csr = GuildRoll_CSRThreshold
@@ -1256,13 +1274,14 @@ function GuildRoll:shareSettings(force)
     local dc = GuildRoll_decay or self.VARS.decay
     local alt = GuildRoll_altpercent or 1.0
     local sc = GuildRoll_saychannel or "GUILD"
+    local sbr = GuildRoll_showAllRollButtons and 1 or 0
     
     -- Escape special chars (= and ;) in string values if needed
     sc = string.gsub(sc, "=", "%%3D")
     sc = string.gsub(sc, ";", "%%3B")
     
-    local payload = string.format("SHARE:CSR=%s;RO=%d;DC=%s;ALT=%s;SC=%s",
-      csrStr, ro, tostring(dc), tostring(alt), sc)
+    local payload = string.format("SHARE:CSR=%s;RO=%d;DC=%s;ALT=%s;SC=%s;SBR=%d",
+      csrStr, ro, tostring(dc), tostring(alt), sc, sbr)
     
     -- Send via existing addonMessage method for consistency
     self:addonMessage(payload, "GUILD")
