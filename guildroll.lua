@@ -1488,6 +1488,9 @@ function GuildRoll:PromptAwardRaidEP()
 end
 
 function GuildRoll:ShowGiveEPDialog(targetName)
+  if not GuildRoll:IsAdmin() then
+    return
+  end
   if not targetName then
     return
   end
@@ -2620,12 +2623,13 @@ StaticPopupDialogs["GUILDROLL_GIVE_EP"] = {
     getglobal(this:GetName().."EditBox"):SetFocus()
   end,
   OnAccept = function()
-    local targetName = this.guildroll_target
+    local parent = this:GetParent()
+    local targetName = parent.guildroll_target
     if not targetName then
       return
     end
     
-    local editBox = getglobal(this:GetParent():GetName().."EditBox")
+    local editBox = getglobal(parent:GetName().."EditBox")
     local epValue = tonumber(editBox:GetText())
     if not epValue then
       UIErrorsFrame:AddMessage(L["Invalid EP value entered."], 1.0, 0.0, 0.0, 1.0)
