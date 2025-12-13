@@ -2588,7 +2588,7 @@ StaticPopupDialogs["GUILDROLL_AWARD_EP_MEMBER"] = {
     local data = this.data
     if not data or not data.memberName or not data.epValue then return end
     
-    if not GuildRoll:IsAdmin() then
+    if not admin() then
       UIErrorsFrame:AddMessage(L["You don't have permission to award EP."], 1.0, 0.0, 0.0, 1.0)
       return
     end
