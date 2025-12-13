@@ -2364,43 +2364,56 @@ function GuildRoll:IsAdmin()
   end
   playerName = string.gsub(playerName, "%-.*$", "")
   
+  -- Helper function to normalize a name: strip realm suffix and convert to lowercase
+  local function normalizeName(name)
+    if type(name) ~= "string" then
+      return nil
+    end
+    -- Strip realm suffix and convert to lowercase
+    name = string.gsub(name, "%-.*$", "")
+    return string.lower(name)
+  end
+  
   -- Normalize forcedList to a map for case-insensitive comparison
   -- Support both map-style { ["Name"] = true } and array-style { "Name", "Other" }
   local normalizedMap = {}
   
-  -- Check if it's array-style (has numeric keys starting at 1)
+  -- Check if it's array-style (has numeric key at index 1)
+  -- For simplicity, we treat any table with a value at index 1 as array-style
+  -- and iterate numerically. Mixed tables are not expected in this use case.
   local isArray = false
   if type(forcedList) == "table" then
-    if forcedList[1] then
+    if forcedList[1] ~= nil then
       isArray = true
     end
   end
   
   if isArray then
     -- Array-style: convert to normalized map
+    -- Iterate only until first nil (standard Lua array convention for WoW 1.12)
     local i = 1
     while forcedList[i] do
-      local name = forcedList[i]
-      if type(name) == "string" then
-        -- Strip realm suffix and convert to lowercase
-        name = string.gsub(name, "%-.*$", "")
-        normalizedMap[string.lower(name)] = true
+      local normalized = normalizeName(forcedList[i])
+      if normalized then
+        normalizedMap[normalized] = true
       end
       i = i + 1
     end
   else
     -- Map-style: normalize keys
     for name, value in pairs(forcedList) do
-      if type(name) == "string" and value then
-        -- Strip realm suffix and convert to lowercase
-        name = string.gsub(name, "%-.*$", "")
-        normalizedMap[string.lower(name)] = true
+      if value then
+        local normalized = normalizeName(name)
+        if normalized then
+          normalizedMap[normalized] = true
+        end
       end
     end
   end
   
   -- Check if player name (lowercase) is in the normalized map
-  if normalizedMap[string.lower(playerName)] then
+  local normalizedPlayerName = normalizeName(playerName)
+  if normalizedPlayerName and normalizedMap[normalizedPlayerName] then
     return true
   end
   
