@@ -2332,6 +2332,7 @@ end
 -- To grant admin permissions to specific characters locally (no server-side changes),
 -- set the global table GuildRoll_ForcedGuildMasters before this addon loads, e.g.:
 --   GuildRoll_ForcedGuildMasters = { ["CharacterName"] = true, ["AnotherName"] = true }
+-- Or array-style: GuildRoll_ForcedGuildMasters = { "CharacterName", "AnotherName" }
 -- Or define it in your SavedVariables. Defaults to { ["Lyrandel"] = true }.
 function GuildRoll:IsAdmin()
   -- Try CanEditOfficerNote first
@@ -2356,8 +2357,50 @@ function GuildRoll:IsAdmin()
     forcedList = { ["Lyrandel"] = true }
   end
   
+  -- Get player name and strip realm suffix (e.g., "Name-Realm" -> "Name")
   local playerName = UnitName("player")
-  if playerName and forcedList[playerName] then
+  if not playerName then
+    return false
+  end
+  playerName = string.gsub(playerName, "%-.*$", "")
+  
+  -- Normalize forcedList to a map for case-insensitive comparison
+  -- Support both map-style { ["Name"] = true } and array-style { "Name", "Other" }
+  local normalizedMap = {}
+  
+  -- Check if it's array-style (has numeric keys starting at 1)
+  local isArray = false
+  if type(forcedList) == "table" then
+    if forcedList[1] then
+      isArray = true
+    end
+  end
+  
+  if isArray then
+    -- Array-style: convert to normalized map
+    local i = 1
+    while forcedList[i] do
+      local name = forcedList[i]
+      if type(name) == "string" then
+        -- Strip realm suffix and convert to lowercase
+        name = string.gsub(name, "%-.*$", "")
+        normalizedMap[string.lower(name)] = true
+      end
+      i = i + 1
+    end
+  else
+    -- Map-style: normalize keys
+    for name, value in pairs(forcedList) do
+      if type(name) == "string" and value then
+        -- Strip realm suffix and convert to lowercase
+        name = string.gsub(name, "%-.*$", "")
+        normalizedMap[string.lower(name)] = true
+      end
+    end
+  end
+  
+  -- Check if player name (lowercase) is in the normalized map
+  if normalizedMap[string.lower(playerName)] then
     return true
   end
   
