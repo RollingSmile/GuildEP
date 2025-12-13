@@ -330,6 +330,23 @@ end
 local function BuildRollOptions()
     local opts = {}
     
+    -- Check if player is an admin or showAllRollButtons is enabled
+    local isAdmin = (GuildRoll and GuildRoll.IsAdmin) and GuildRoll:IsAdmin() or false
+    if isAdmin or (GuildRoll_showAllRollButtons == true) then
+        -- show full set: CSR if permitted, SR, EP(MS), 101/100/99/98, Standings
+        if PlayerHasCSRPermission() then
+            table.insert(opts, { "CSR", "roll csr" })
+        end
+        table.insert(opts, { "SR", "roll sr" })
+        table.insert(opts, { "EP(MS)", "roll ep" })
+        table.insert(opts, { "101", "roll 101" })
+        table.insert(opts, { "100", "roll 100" })
+        table.insert(opts, { "99", "roll 99" })
+        table.insert(opts, { "98", "roll 98" })
+        table.insert(opts, { "Standings", "show ep" })
+        return opts
+    end
+    
     -- Check if player is an Alt
     local isAlt = IsAlt()
     
