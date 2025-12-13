@@ -1885,9 +1885,16 @@ function GuildRoll:buildClassMemberTable(roster,epgp)
       c[class].args[name].name = name
       c[class].args[name].desc = string.format(desc,name)
       c[class].args[name].usage = usage
+      c[class].args[name].hidden = function() return not (admin()) end
       if epgp == "MainStanding" then
         c[class].args[name].get = "suggestedAwardMainStanding"
-        c[class].args[name].set = function(v) GuildRoll:givename_ep(name, tonumber(v)) GuildRoll:refreshPRTablets() end
+        c[class].args[name].set = function(v) 
+          -- Show confirmation popup instead of directly awarding EP
+          local dialog = StaticPopup_Show("GUILDROLL_AWARD_EP_MEMBER")
+          if dialog then
+            dialog.data = { memberName = name, epValue = tonumber(v) }
+          end
+        end
       elseif epgp == "AuxStanding" then
         c[class].args[name].get = false
         c[class].args[name].set = function(v) GuildRoll:givename_ep(name, tonumber(v)) GuildRoll:refreshPRTablets() end
@@ -2558,6 +2565,35 @@ StaticPopupDialogs["GUILDROLL_AWARD_EP_RAID_HELP"] = {
   end,
   EditBoxOnEscapePressed = function()
     this:GetParent():Hide()
+  end,
+  timeout = 0,
+  exclusive = 1,
+  whileDead = 1,
+  hideOnEscape = 1
+}
+
+StaticPopupDialogs["GUILDROLL_AWARD_EP_MEMBER"] = {
+  text = L["Give EP to %s"],
+  button1 = TEXT(ACCEPT),
+  button2 = TEXT(CANCEL),
+  OnShow = function()
+    local data = this.data
+    if data and data.memberName and data.epValue then
+      local confirmText = string.format(L["Give EP to %s"], data.memberName) .. "\n\n" .. 
+                          string.format("Amount: %d EP", data.epValue)
+      getglobal(this:GetName().."Text"):SetText(confirmText)
+    end
+  end,
+  OnAccept = function()
+    local data = this.data
+    if not data or not data.memberName or not data.epValue then return end
+    
+    if not GuildRoll:IsAdmin() then
+      UIErrorsFrame:AddMessage(L["You don't have permission to award EP."], 1.0, 0.0, 0.0, 1.0)
+      return
+    end
+    GuildRoll:givename_ep(data.memberName, data.epValue)
+    GuildRoll:refreshPRTablets()
   end,
   timeout = 0,
   exclusive = 1,

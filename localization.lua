@@ -142,6 +142,8 @@ Results will print here when done.]],
   -- StaticPopup prompts
   ["Enter EP to award to raid members:"] = true,
   ["Enter number of weeks you SR this item (0..15):"] = true,
+  ["Give EP to %s"] = true,
+  ["Confirm EP Award"] = true,
   ["guildroll options"] = true,
   ["+MainStanding to Member"] = "+EP to Member",
   ["Account MainStanding for member."] = "Account EP for member.",
