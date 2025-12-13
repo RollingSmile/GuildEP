@@ -208,5 +208,5 @@ Results will print here when done.]],
   ["New Minimum MainStanding"] = "New Minimum EP",
   ["CSR Threshold"] = true,
   ["Maximum rank index allowed to view CSR"] = "Maximum rank index allowed to view CSR (0 = highest rank)",
-  ["Show all Roll Button"] = "Show all Roll Button",
+  ["Show all Roll Buttons"] = "Show all Roll Buttons",
 } end)

@@ -639,11 +639,11 @@ function GuildRoll:buildMenu()
     end
     options.args["show_all_roll_buttons"] = {
       type = "toggle",
-      name = L["Show all Roll Button"],
-      desc = "When enabled, show all roll buttons to everyone (Admin only).",
+      name = L["Show all Roll Buttons"],
+      desc = "When enabled, shows all roll buttons to everyone (Admin only).",
       order = 130,
       hidden = function() return not (admin()) end,
-      get = function() return not not GuildRoll_showAllRollButtons end,
+      get = function() return GuildRoll_showAllRollButtons == true end,
       set = function(v)
         GuildRoll_showAllRollButtons = v
         if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
