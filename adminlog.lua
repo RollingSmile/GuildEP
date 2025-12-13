@@ -28,6 +28,13 @@ NOTES:
 - This module is isolated and does not modify existing logs.lua
 --]]
 
+--[[
+AdminLog Module for GuildRoll
+Provides persistent, guild-wide synchronized admin log with delta broadcast and snapshot sync.
+...
+-- (intentionally unchanged header/training text)
+--]]
+
 -- Guard: Check if required libraries are available
 local T, D, C, CP, L
 do
@@ -375,8 +382,6 @@ local function handleAdminLogMessage(prefix, message, channel, sender)
   if not message or not string.find(message, "^ADMINLOG;") then return end
   
   -- Normalize sender: remove realm suffix (e.g., Name-Realm -> Name)
-  -- Pattern %-.*$ matches a literal hyphen followed by everything to end of string
-  -- This handles both simple (Name-Realm) and multi-hyphen (Name-Burning-Legion) realm names
   local sender_norm = sender and string.gsub(sender, "%-.*$", "") or sender
   
   -- Verify sender is guild member
@@ -421,7 +426,6 @@ local function handleAdminLogMessage(prefix, message, channel, sender)
     
   elseif msgType == "REQ" then
     -- ADMINLOG;REQ;version;since_ts
-    -- Only admins respond to snapshot requests
     if not GuildRoll:IsAdmin() then return end
     
     if table.getn(parts) < 4 then return end
@@ -522,7 +526,6 @@ function GuildRoll:AdminLogAdd(text)
 end
 
 -- Public API: Add a raid admin log entry with player details
--- raid_data = {ep = number, players = {player1, player2, ...}, counts = {player1={old=x, new=y}, ...}}
 function GuildRoll:AdminLogAddRaid(ep, raid_data)
   if not self:IsAdmin() then
     return
@@ -585,6 +588,12 @@ function GuildRoll_AdminLog:OnEnable()
   
   -- Register Tablet UI
   if not T:IsRegistered("GuildRoll_AdminLog") then
+
+    -- Safe wrapper for D:AddLine to prevent Dewdrop crashes (same pattern as other modules)
+    local function safeAddLine(...)
+      pcall(D.AddLine, D, unpack(arg))
+    end
+
     T:Register("GuildRoll_AdminLog",
       "children", function()
         T:SetTitle("Admin Log")
@@ -595,7 +604,7 @@ function GuildRoll_AdminLog:OnEnable()
       "cantAttach", true,
       "menu", function()
         -- Sync option
-        D:AddLine(
+        safeAddLine(
           "text", "Sync",
           "tooltipText", "Request admin log sync from other admins",
           "func", function()
@@ -613,12 +622,12 @@ function GuildRoll_AdminLog:OnEnable()
         )
         
         -- Filter by author
-        D:AddLine(
+        safeAddLine(
           "text", "Filter by Author",
           "hasArrow", true,
           "hasSlider", false
         )
-        D:AddLine(
+        safeAddLine(
           "text", "All Authors",
           "tooltipText", "Show all admin log entries",
           "func", function()
@@ -639,7 +648,7 @@ function GuildRoll_AdminLog:OnEnable()
         end
         
         for author, _ in pairs(authors) do
-          D:AddLine(
+          safeAddLine(
             "text", author,
             "tooltipText", string.format("Show only entries by %s", author),
             "func", function()
@@ -651,7 +660,7 @@ function GuildRoll_AdminLog:OnEnable()
         end
         
         -- Search
-        D:AddLine(
+        safeAddLine(
           "text", "Search",
           "tooltipText", "Search admin log entries",
           "func", function()
@@ -661,7 +670,7 @@ function GuildRoll_AdminLog:OnEnable()
         
         -- Clear search
         if searchText then
-          D:AddLine(
+          safeAddLine(
             "text", "Clear Search",
             "tooltipText", "Clear search filter",
             "func", function()
@@ -672,7 +681,7 @@ function GuildRoll_AdminLog:OnEnable()
         end
         
         -- Refresh
-        D:AddLine(
+        safeAddLine(
           "text", "Refresh",
           "tooltipText", "Refresh admin log display",
           "func", function()
@@ -681,7 +690,7 @@ function GuildRoll_AdminLog:OnEnable()
         )
         
         -- Clear (GuildMaster only)
-        D:AddLine(
+        safeAddLine(
           "text", "Clear",
           "tooltipText", "Clear all admin log entries (GuildMaster only)",
           "func", function()
@@ -715,10 +724,34 @@ function GuildRoll_AdminLog:OnEnable()
   if not T:IsAttached("GuildRoll_AdminLog") then
     pcall(function() T:Open("GuildRoll_AdminLog") end)
   end
+
+  -- Defensive: ensure detached frame owner & ESC behavior consistent with other modules
+  pcall(function() GuildRoll_AdminLog:setHideScript() end)
 end
 
 function GuildRoll_AdminLog:OnDisable()
   pcall(function() T:Close("GuildRoll_AdminLog") end)
+end
+
+-- Ensure detached frame owner and ESC handling (coherent with other modules)
+function GuildRoll_AdminLog:setHideScript()
+  local frame = GuildRoll:FindDetachedFrame("GuildRoll_AdminLog")
+  if frame then
+    if not frame.owner then
+      frame.owner = "GuildRoll_AdminLog"
+    end
+    GuildRoll:make_escable(frame:GetName(), "add")
+    if frame.SetScript then
+      frame:SetScript("OnHide", nil)
+      frame:SetScript("OnHide", function(f)
+          pcall(function()
+            if f and f.SetScript then
+              f:SetScript("OnHide", nil)
+            end
+          end)
+        end)
+    end
+  end
 end
 
 function GuildRoll_AdminLog:OnTooltipUpdate()
