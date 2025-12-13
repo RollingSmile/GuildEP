@@ -1762,8 +1762,12 @@ function GuildRoll:OnClick(button)
   if ctrl and shift and not alt then
     if is_admin then
       -- Admin: toggle new AdminLog module
+      -- Ensure module is enabled before calling Toggle
       if GuildRoll_AdminLog and GuildRoll_AdminLog.Toggle then
-        pcall(function() GuildRoll_AdminLog:Toggle() end)
+        pcall(function()
+          GuildRoll:ToggleModuleActive("GuildRoll_AdminLog", true)
+          GuildRoll_AdminLog:Toggle()
+        end)
       end
     else
       -- Not admin: open Personal Log as fallback (no error message)
