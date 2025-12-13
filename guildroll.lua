@@ -699,7 +699,6 @@ function GuildRoll:OnInitialize() -- ADDON_LOADED (1) unless LoD
  -- if GuildRoll_discount == nil then GuildRoll_discount = 0.25 end
   if GuildRollAltspool == nil then GuildRollAltspool = true end
   if GuildRoll_altpercent == nil then GuildRoll_altpercent = 1.0 end
-  if GuildRoll_log == nil then GuildRoll_log = {} end
   if GuildRoll_looted == nil then GuildRoll_looted = {} end
   if GuildRoll_debug == nil then GuildRoll_debug = {} end
   --if GuildRoll_showRollWindow == nil then GuildRoll_showRollWindow = true end
@@ -2112,7 +2111,7 @@ end
 -- Logging
 ------------
 function GuildRoll:addToLog(line,skipTime)
-  -- For admins: use the new synchronized AdminLog system
+  -- For admins: use the new synchronized AdminLog system only
   if self:IsAdmin() then
     -- Add to synchronized AdminLog (broadcasts to all admins)
     if GuildRoll.AdminLogAdd then
@@ -2121,21 +2120,8 @@ function GuildRoll:addToLog(line,skipTime)
       end)
     end
   end
-  
-  -- Always keep local log for backward compatibility and non-admins
-  local over = table.getn(GuildRoll_log)-GuildRoll.VARS.maxloglines+1
-  if over > 0 then
-    for i=1,over do
-      table.remove(GuildRoll_log,1)
-    end
-  end
-  local timestamp
-  if (skipTime) then
-    timestamp = ""
-  else
-    timestamp = date("%b/%d %H:%M:%S")
-  end
-  table.insert(GuildRoll_log,{timestamp,line})
+  -- For non-admins: do nothing (admin actions only recorded in AdminLog)
+  -- Personal logs are maintained separately via personalLogAdd
 end
 
 ------------
