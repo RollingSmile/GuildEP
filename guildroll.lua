@@ -1497,7 +1497,7 @@ function GuildRoll:ShowGiveEPDialog(targetName)
   -- Pass targetName as data parameter to avoid race condition in OnShow
   local dialog = StaticPopup_Show("GUILDROLL_GIVE_EP", nil, nil, targetName)
   if dialog then
-    -- Defensive: ensure data is set (should always be set by StaticPopup_Show, but check for safety)
+    -- Defensive: ensure data is set for modified/older client environments where StaticPopup_Show may not handle data parameter
     if not dialog.data then
       dialog.data = targetName
     end
