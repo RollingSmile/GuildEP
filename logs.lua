@@ -79,11 +79,6 @@ function GuildRoll_logs:OnEnable()
           "tooltipText", L["Refresh window"],
           "func", function() GuildRoll_logs:Refresh() end
         )
-        safeAddLine(
-          "text", L["Clear"],
-          "tooltipText", L["Clear Logs."],
-          "func", function() GuildRoll_logs:ConfirmClear() end
-        )
       end      
     )
     
@@ -108,22 +103,9 @@ function GuildRoll_logs:OnDisable()
 end
 
 function GuildRoll_logs:ConfirmClear()
-  -- Define StaticPopupDialog if not already defined
-  if not StaticPopupDialogs["GUILDROLL_CLEAR_LOGS_CONFIRM"] then
-    StaticPopupDialogs["GUILDROLL_CLEAR_LOGS_CONFIRM"] = {
-      text = L["This will permanently delete all Admin Log entries. Continue?"],
-      button1 = TEXT(ACCEPT),
-      button2 = TEXT(CANCEL),
-      OnAccept = function()
-        GuildRoll_log = {}
-        GuildRoll_logs:Refresh()
-      end,
-      timeout = 0,
-      whileDead = 1,
-      hideOnEscape = 1
-    }
-  end
-  StaticPopup_Show("GUILDROLL_CLEAR_LOGS_CONFIRM")
+  -- Legacy function removed: GuildRoll_log is deprecated.
+  -- AdminLog clearing is handled by the AdminLog module directly.
+  return
 end
 
 function GuildRoll_logs:Refresh()
@@ -190,16 +172,28 @@ function GuildRoll_logs:reverse(arr)
 end
 
 function GuildRoll_logs:BuildLogsTable()
-  -- Check if user is officer - show global log
+  -- Check if user is officer - show AdminLog
   -- Otherwise show personal log
   local isOfficer = GuildRoll:IsAdmin()
 
   if isOfficer then
-    -- {timestamp,line}
-    return self:reverse(GuildRoll_log)
+    -- Build from synchronized AdminLog (GuildRoll_adminLogOrder + GuildRoll_adminLogSaved)
+    local result = {}
+    if GuildRoll_adminLogOrder and GuildRoll_adminLogSaved then
+      for i = 1, table.getn(GuildRoll_adminLogOrder) do
+        local id = GuildRoll_adminLogOrder[i]
+        local entry = GuildRoll_adminLogSaved[id]
+        if entry and entry.ts and entry.action then
+          -- Format timestamp to match existing log format: "%b/%d %H:%M:%S"
+          local timestamp = date("%b/%d %H:%M:%S", entry.ts)
+          table.insert(result, {timestamp, entry.action})
+        end
+      end
+    end
+    return self:reverse(result)
   else
     -- Show personal log for current player
-    local playerName = UnitName("player") or UnitName("player") or "player"
+    local playerName = UnitName("player") or "player"
     local personalLog = GuildRoll_personalLogs[playerName] or {}
     return self:reverse(personalLog)
   end
