@@ -1419,7 +1419,6 @@ function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
     local award = {}
     local adminName = UnitName("player")
     local raid_data = {
-      ep = ep,
       players = {},
       counts = {}
     }
@@ -1534,10 +1533,10 @@ function GuildRoll:givename_ep(getname,ep,block) -- awards ep to a single charac
   local adminName = UnitName("player")
   if ep < 0 then
     msg = string.format(L["%s MainStanding Penalty to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
-    logMsg = string.format("[MEMBER] %s: %d EP Penalty to %s%s (Prev: %d, New: %d)", adminName, ep, getname, postfix, old, newep)
+    logMsg = string.format("%s: %d EP Penalty to %s%s (Prev: %d, New: %d)", adminName, ep, getname, postfix, old, newep)
   else
     msg = string.format(L["Giving %d MainStanding to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
-    logMsg = string.format("[MEMBER] %s: Giving %d EP to %s%s (Prev: %d, New: %d)", adminName, ep, getname, postfix, old, newep)
+    logMsg = string.format("%s: Giving %d EP to %s%s (Prev: %d, New: %d)", adminName, ep, getname, postfix, old, newep)
   end
   self:adminSay(msg)
   self:addToLog(logMsg)
