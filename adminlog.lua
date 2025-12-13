@@ -9,8 +9,8 @@ TESTING INSTRUCTIONS:
    Then /reload
 
 2. Test with two admin clients online:
-   - Client A: Add entry via UI (Ctrl+Shift+Click)
-   - Client B: Should automatically receive the entry (check with UI)
+   - Client A: Add entry via AdminLog UI (Ctrl+Shift+Click on minimap button)
+   - Client B: Should automatically receive the entry (check with AdminLog UI)
    - Verify both clients show the same entry
 
 3. Test snapshot sync:
