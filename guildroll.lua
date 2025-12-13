@@ -2705,6 +2705,13 @@ StaticPopupDialogs["GUILDROLL_GIVE_EP"] = {
     -- Call givename_ep which handles validation, alt->main conversion, scaling, logging
     pcall(function() GuildRoll:givename_ep(targetName, epValue) end)
     GuildRoll:refreshPRTablets()
+    
+    -- Clear pending variables to prevent stale data on next dialog open
+    pcall(function()
+      GuildRoll._pendingGiveEPTarget = nil
+      parent.data = nil
+      parent.guildroll_target = nil
+    end)
   end,
   EditBoxOnEnterPressed = function()
     local parent = this:GetParent()
@@ -2726,6 +2733,14 @@ StaticPopupDialogs["GUILDROLL_GIVE_EP"] = {
     -- Call givename_ep which handles validation, alt->main conversion, scaling, logging
     pcall(function() GuildRoll:givename_ep(targetName, epValue) end)
     GuildRoll:refreshPRTablets()
+    
+    -- Clear pending variables to prevent stale data on next dialog open
+    pcall(function()
+      GuildRoll._pendingGiveEPTarget = nil
+      parent.data = nil
+      parent.guildroll_target = nil
+    end)
+    
     parent:Hide()
   end,
   EditBoxOnEscapePressed = function()
@@ -2736,6 +2751,13 @@ StaticPopupDialogs["GUILDROLL_GIVE_EP"] = {
       ChatFrameEditBox:SetFocus()
     end
     getglobal(this:GetName().."EditBox"):SetText("")
+    
+    -- Clear pending variables and dialog fields to prevent stale data on next dialog open
+    pcall(function()
+      GuildRoll._pendingGiveEPTarget = nil
+      this.data = nil
+      this.guildroll_target = nil
+    end)
   end,
   timeout = 0,
   exclusive = 1,
