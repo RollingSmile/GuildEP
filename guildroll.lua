@@ -1218,7 +1218,7 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
         local newEP = prevEP + amount
         local logMsg
         if amount < 0 then
-          logMsg = string.format("%d EP penalty by %s (Prev: %d, New: %d)", math.abs(amount), sender, prevEP, newEP)
+          logMsg = string.format("%s %d EP penalty by %s (Prev: %d, New: %d)", who, math.abs(amount), sender, prevEP, newEP)
         else
           logMsg = string.format("%s %+d EP by %s (Prev: %d, New: %d)", who, amount, sender, prevEP, newEP)
         end
