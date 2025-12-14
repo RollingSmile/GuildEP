@@ -2770,7 +2770,7 @@ function GuildRoll:RollCommand(isSRRoll, bonus)
   -- New EP-aware roll ranges
   if isSRRoll then
     -- SR: 100 + baseRoll to 200 + baseRoll
-    minRoll = 100 + baseRoll
+    minRoll = 101 + baseRoll
     maxRoll = 200 + baseRoll
   else
     -- EP-aware MS: 1 + baseRoll to 100 + baseRoll
