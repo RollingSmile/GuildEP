@@ -143,7 +143,7 @@ local FLASKS = {
 -- StaticPopup dialogs (defined once at module initialization)
 StaticPopupDialogs["GUILDROLL_CONSUMES_AWARD_EP"] = {
   text = "",  -- Will be set dynamically via L[] lookup
-  button1 = L["Give EP"] or "Give EP",
+  button1 = TEXT(ACCEPT),
   button2 = TEXT(CANCEL),
   OnAccept = function()
     -- Call the existing Give EP flow
@@ -158,7 +158,7 @@ StaticPopupDialogs["GUILDROLL_CONSUMES_AWARD_EP"] = {
 
 StaticPopupDialogs["GUILDROLL_FLASKS_AWARD_EP"] = {
   text = "",  -- Will be set dynamically via L[] lookup
-  button1 = L["Give EP"] or "Give EP",
+  button1 = TEXT(ACCEPT),
   button2 = TEXT(CANCEL),
   OnAccept = function()
     -- Call the existing Give EP flow
