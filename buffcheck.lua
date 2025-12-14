@@ -27,7 +27,16 @@ end
 
 GuildRoll_BuffCheck = GuildRoll:NewModule("GuildRoll_BuffCheck", "AceDB-2.0")
 
--- Buff definitions by provider class
+-- Spell ID tables for buffs by provider class (Turtle WoW 1.12)
+-- WARRIOR intentionally removed - Battle Shout is not checked
+local BUFF_IDS = {
+  PRIEST = {10933, 27681, 14782, 27683, 27685, 27687},
+  MAGE   = {1459, 23028},
+  DRUID  = {8907, 21850},
+  PALADIN= {10442, 25780, 10308, 25895, 25782, 25899, 19978, 25916, 1038, 25898},
+}
+
+-- Legacy name-based buff requirements (kept for reference only)
 local BUFF_REQUIREMENTS = {
   PRIEST = {
     "Power Word: Fortitude",
@@ -44,9 +53,7 @@ local BUFF_REQUIREMENTS = {
     "Mark of the Wild",
     "Gift of the Wild",
   },
-  WARRIOR = {
-    "Battle Shout",
-  },
+  -- WARRIOR removed - Battle Shout no longer checked
   PALADIN = {
     -- Special handling: count number of paladins and require min(N, #blessing_types) distinct blessings
     "Blessing of Might",
@@ -57,7 +64,27 @@ local BUFF_REQUIREMENTS = {
   },
 }
 
--- Consumables by class (min = 4)
+-- Spell ID tables for consumables by class (Turtle WoW 1.12)
+local CONSUMABLE_IDS = {
+  WARRIOR = {17528, 17551, 18125, 17539, 17540, 24045, 10706, 17565},
+  ROGUE   = {17528, 9188, 18125, 17539, 17540, 10706, 24045},
+  HUNTER  = {17528, 9188, 18125, 17539, 10706, 24045},
+  MAGE    = {17562, 17560, 17556, 17557, 17563, 9030, 18141},
+  WARLOCK = {17562, 17560, 17556, 17557, 9030, 18141},
+  PRIEST  = {17562, 17560, 17556, 17557, 9030, 18141},
+  DRUID   = {17562, 17560, 17556, 17557, 9030, 18141, 17528, 9188},
+  PALADIN = {17551, 17528, 17562, 17560, 17556, 17557, 9030, 18141},
+  -- SHAMAN intentionally omitted
+}
+
+-- Keyword fallback for consumables (for servers with custom buff names)
+local CONSUMABLE_BUFF_KEYWORDS = {
+  "Mongoose", "Giants", "Firewater", "Juju", "Stoneshield", "Sunfruit", "Dumplings",
+  "Agility", "Firepower", "Shadow Power", "Arcane Elixir", "Frost Power", 
+  "Cerebral", "Runn Tum"
+}
+
+-- Legacy name-based consumables (kept for reference only)
 local CONSUMABLES = {
   WARRIOR = {
     "Elixir of the Mongoose",
@@ -133,12 +160,81 @@ local CONSUMABLES = {
   },
 }
 
+-- Spell ID tables for flasks (Turtle WoW 1.12)
+local FLASK_IDS = {13506, 13508, 13507}
+
+-- Legacy name-based flasks (kept for reference only)
 -- Common flasks (min = 1)
 local FLASKS = {
   "Flask of Distilled Wisdom",
   "Flask of Supreme Power",
   "Flask of the Titans",
 }
+
+-- Localized name maps (populated by resolveIDLists)
+local localizedBuffs = {}      -- [className] = {[localizedName] = true}
+local localizedConsumables = {} -- [className] = {[localizedName] = true}
+local localizedFlasks = {}      -- {[localizedName] = true}
+
+-- Helper: Compatibility wrapper for GetSpellInfo (1.12 uses GetSpellName)
+local function GetSpellNameByID(spellID)
+  -- Try GetSpellInfo first (TBC+)
+  if GetSpellInfo then
+    local name = GetSpellInfo(spellID)
+    return name
+  end
+  
+  -- Fallback to GetSpellName for 1.12 (spellID, spellbookType)
+  -- Note: This requires the spell to be in the player's spellbook
+  if GetSpellName then
+    local name = GetSpellName(spellID, BOOKTYPE_SPELL)
+    return name
+  end
+  
+  return nil
+end
+
+-- Helper: Populate localized name maps from spell IDs
+local function resolveIDLists()
+  -- Clear previous maps
+  localizedBuffs = {}
+  localizedConsumables = {}
+  localizedFlasks = {}
+  
+  -- Resolve BUFF_IDS
+  for className, idList in pairs(BUFF_IDS) do
+    if not localizedBuffs[className] then
+      localizedBuffs[className] = {}
+    end
+    for _, spellID in ipairs(idList) do
+      local ok, spellName = pcall(GetSpellNameByID, spellID)
+      if ok and spellName then
+        localizedBuffs[className][spellName] = true
+      end
+    end
+  end
+  
+  -- Resolve CONSUMABLE_IDS
+  for className, idList in pairs(CONSUMABLE_IDS) do
+    if not localizedConsumables[className] then
+      localizedConsumables[className] = {}
+    end
+    for _, spellID in ipairs(idList) do
+      local ok, spellName = pcall(GetSpellNameByID, spellID)
+      if ok and spellName then
+        localizedConsumables[className][spellName] = true
+      end
+    end
+  end
+  
+  -- Resolve FLASK_IDS
+  for _, spellID in ipairs(FLASK_IDS) do
+    local ok, spellName = pcall(GetSpellNameByID, spellID)
+    if ok and spellName then
+      localizedFlasks[spellName] = true
+    end
+  end
+end
 
 -- StaticPopup dialogs (defined once at module initialization)
 StaticPopupDialogs["GUILDROLL_CONSUMES_AWARD_EP"] = {
@@ -218,7 +314,24 @@ local function GetBuffName(unit, buffIndex)
   return nil
 end
 
--- Helper: Check if player has any buff from a list using tooltip scan
+-- Helper: Check if player has any buff from a localized map
+-- buffMap is {[localizedName] = true}
+local function HasAnyBuffByMap(unit, buffMap)
+  if not buffMap then return false end
+  
+  for i = 1, 32 do
+    local buffTexture = UnitBuff(unit, i)
+    if not buffTexture then break end
+    
+    local buffName = GetBuffName(unit, i)
+    if buffName and buffMap[buffName] then
+      return true, buffName
+    end
+  end
+  return false
+end
+
+-- Helper: Check if player has any buff from a list using tooltip scan (legacy)
 local function HasAnyBuffByName(unit, buffList)
   for i = 1, 32 do
     local buffTexture = UnitBuff(unit, i)
@@ -301,20 +414,28 @@ end
 
 -- Main check functions
 function GuildRoll_BuffCheck:CheckBuffs()
+  -- Clear previous state
+  self._currentReport = nil
+  self._reportTitle = nil
+  self._reportAllOk = nil
+  
   local numRaid = GetNumRaidMembers()
   if numRaid == 0 then
     GuildRoll:defaultPrint(L["BuffCheck_NotInRaid"] or "You are not in a raid.")
     return
   end
   
+  -- Resolve spell IDs to localized names
+  resolveIDLists()
+  
   local report = {}
   local allOk = true
   
-  -- Check which provider classes are present
+  -- Check which provider classes are present (using BUFF_IDS)
   local providers = {}
-  for class, buffs in pairs(BUFF_REQUIREMENTS) do
+  for class, _ in pairs(BUFF_IDS) do
     if IsClassInRaid(class) then
-      providers[class] = buffs
+      providers[class] = true
     end
   end
   
@@ -327,10 +448,11 @@ function GuildRoll_BuffCheck:CheckBuffs()
     local name, _, _, _, class = GetRaidRosterInfo(i)
     local unit = "raid" .. i
     
-    -- Check regular buffs (non-paladin)
-    for providerClass, buffList in pairs(providers) do
+    -- Check regular buffs (non-paladin) using localized maps
+    for providerClass, _ in pairs(providers) do
       if providerClass ~= "PALADIN" then
-        local hasBuff, matchedBuff = HasAnyBuffByName(unit, buffList)
+        local buffMap = localizedBuffs[providerClass]
+        local hasBuff, matchedBuff = HasAnyBuffByMap(unit, buffMap)
         if not hasBuff then
           allOk = false
           table.insert(report, {
@@ -360,14 +482,25 @@ function GuildRoll_BuffCheck:CheckBuffs()
   
   -- Show results in Tablet
   self:ShowReport(report, "Buff Check", allOk)
+  
+  -- Refresh Tablet window in-place
+  pcall(function() T:Refresh("GuildRoll_BuffCheck") end)
 end
 
 function GuildRoll_BuffCheck:CheckConsumes()
+  -- Clear previous state
+  self._currentReport = nil
+  self._reportTitle = nil
+  self._reportAllOk = nil
+  
   local numRaid = GetNumRaidMembers()
   if numRaid == 0 then
     GuildRoll:defaultPrint(L["BuffCheck_NotInRaid"] or "You are not in a raid.")
     return
   end
+  
+  -- Resolve spell IDs to localized names
+  resolveIDLists()
   
   local report = {}
   local allOk = true
@@ -378,8 +511,8 @@ function GuildRoll_BuffCheck:CheckConsumes()
     local unit = "raid" .. i
     
     local normalizedClass = NormalizeClassToken(class)
-    local consumableList = CONSUMABLES[normalizedClass]
-    if consumableList then
+    local consumableMap = localizedConsumables[normalizedClass]
+    if consumableMap then
       local count = 0
       local found = {}
       
@@ -389,11 +522,18 @@ function GuildRoll_BuffCheck:CheckConsumes()
         
         local buffName = GetBuffName(unit, j)
         if buffName then
-          for _, consumable in ipairs(consumableList) do
-            if MatchBuff(buffName, consumable) and not found[consumable] then
-              count = count + 1
-              found[consumable] = true
-              break
+          -- Try exact match from localized map first
+          if consumableMap[buffName] and not found[buffName] then
+            count = count + 1
+            found[buffName] = true
+          else
+            -- Fallback to keyword matching for custom server buffs
+            for _, keyword in ipairs(CONSUMABLE_BUFF_KEYWORDS) do
+              if MatchBuff(buffName, keyword) and not found[buffName] then
+                count = count + 1
+                found[buffName] = true
+                break
+              end
             end
           end
         end
@@ -419,14 +559,25 @@ function GuildRoll_BuffCheck:CheckConsumes()
     -- Show report in Tablet
     self:ShowReport(report, "Consumables Check", allOk)
   end
+  
+  -- Refresh Tablet window in-place
+  pcall(function() T:Refresh("GuildRoll_BuffCheck") end)
 end
 
 function GuildRoll_BuffCheck:CheckFlasks()
+  -- Clear previous state
+  self._currentReport = nil
+  self._reportTitle = nil
+  self._reportAllOk = nil
+  
   local numRaid = GetNumRaidMembers()
   if numRaid == 0 then
     GuildRoll:defaultPrint(L["BuffCheck_NotInRaid"] or "You are not in a raid.")
     return
   end
+  
+  -- Resolve spell IDs to localized names
+  resolveIDLists()
   
   local report = {}
   local allOk = true
@@ -436,7 +587,7 @@ function GuildRoll_BuffCheck:CheckFlasks()
     local name, _, _, _, class = GetRaidRosterInfo(i)
     local unit = "raid" .. i
     
-    local hasFlask, matchedFlask = HasAnyBuffByName(unit, FLASKS)
+    local hasFlask, matchedFlask = HasAnyBuffByMap(unit, localizedFlasks)
     if not hasFlask then
       allOk = false
       table.insert(report, {
@@ -456,6 +607,9 @@ function GuildRoll_BuffCheck:CheckFlasks()
     -- Show report in Tablet
     self:ShowReport(report, "Flasks Check", allOk)
   end
+  
+  -- Refresh Tablet window in-place
+  pcall(function() T:Refresh("GuildRoll_BuffCheck") end)
 end
 
 -- Show report in Tablet
@@ -467,6 +621,109 @@ function GuildRoll_BuffCheck:ShowReport(report, title, allOk)
   
   -- Toggle Tablet display
   self:Toggle(true)
+end
+
+-- Diagnostic helper: Dump buffs on a unit
+function GuildRoll_BuffCheck:DumpBuffs(unit)
+  if not unit then
+    GuildRoll:defaultPrint("Usage: GuildRoll_BuffCheck:DumpBuffs(\"player\") or GuildRoll_BuffCheck:DumpBuffs(\"raid1\")")
+    return
+  end
+  
+  local ok, exists = pcall(UnitExists, unit)
+  if not ok or not exists then
+    GuildRoll:defaultPrint("Unit does not exist: " .. tostring(unit))
+    return
+  end
+  
+  -- Resolve spell IDs to check matches
+  resolveIDLists()
+  
+  local _, class = UnitClass(unit)
+  local normalizedClass = NormalizeClassToken(class)
+  
+  GuildRoll:defaultPrint("=== Buffs on " .. tostring(unit) .. " ===")
+  
+  for i = 1, 32 do
+    local buffTexture = UnitBuff(unit, i)
+    if not buffTexture then break end
+    
+    local buffName = GetBuffName(unit, i)
+    if buffName then
+      local matched = {}
+      
+      -- Check if it matches any buff category
+      for providerClass, buffMap in pairs(localizedBuffs) do
+        if buffMap[buffName] then
+          table.insert(matched, "BUFF:" .. providerClass)
+        end
+      end
+      
+      -- Check if it matches consumables
+      if localizedConsumables[normalizedClass] and localizedConsumables[normalizedClass][buffName] then
+        table.insert(matched, "CONSUME:" .. normalizedClass)
+      end
+      
+      -- Check if it matches flasks
+      if localizedFlasks[buffName] then
+        table.insert(matched, "FLASK")
+      end
+      
+      local matchStr = ""
+      if table.getn(matched) > 0 then
+        matchStr = " [" .. table.concat(matched, ", ") .. "]"
+      end
+      
+      GuildRoll:defaultPrint(i .. ". " .. buffName .. matchStr)
+    end
+  end
+  
+  GuildRoll:defaultPrint("=== End of buff dump ===")
+end
+
+-- Runtime helper: Add spell IDs to the configured lists
+function GuildRoll_BuffCheck:AddSpellIDs(kind, idlist)
+  if not kind or not idlist then
+    GuildRoll:defaultPrint("Usage: GuildRoll_BuffCheck:AddSpellIDs(\"BUFF:PRIEST\", {12345, 67890})")
+    GuildRoll:defaultPrint("       GuildRoll_BuffCheck:AddSpellIDs(\"CONSUME:WARRIOR\", {12345})")
+    GuildRoll:defaultPrint("       GuildRoll_BuffCheck:AddSpellIDs(\"FLASK\", {12345})")
+    return
+  end
+  
+  if kind == "FLASK" then
+    -- Add to FLASK_IDS
+    for _, id in ipairs(idlist) do
+      table.insert(FLASK_IDS, id)
+    end
+    GuildRoll:defaultPrint("Added " .. table.getn(idlist) .. " spell IDs to FLASK_IDS")
+  elseif string.find(kind, "BUFF:") then
+    -- Extract class name
+    local className = string.sub(kind, 6)
+    if not BUFF_IDS[className] then
+      BUFF_IDS[className] = {}
+    end
+    for _, id in ipairs(idlist) do
+      table.insert(BUFF_IDS[className], id)
+    end
+    GuildRoll:defaultPrint("Added " .. table.getn(idlist) .. " spell IDs to BUFF_IDS." .. className)
+  elseif string.find(kind, "CONSUME:") then
+    -- Extract class name
+    local className = string.sub(kind, 9)
+    if not CONSUMABLE_IDS[className] then
+      CONSUMABLE_IDS[className] = {}
+    end
+    for _, id in ipairs(idlist) do
+      table.insert(CONSUMABLE_IDS[className], id)
+    end
+    GuildRoll:defaultPrint("Added " .. table.getn(idlist) .. " spell IDs to CONSUMABLE_IDS." .. className)
+  else
+    GuildRoll:defaultPrint("Unknown kind: " .. kind)
+    return
+  end
+  
+  -- Re-resolve localized names
+  resolveIDLists()
+  GuildRoll:defaultPrint("Spell ID lists updated and localized names refreshed.")
 end
 
 -- Tablet integration
