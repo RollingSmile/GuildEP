@@ -427,14 +427,16 @@ function GuildRoll:buildMenu()
     -- 2. Set Min EP (text) - second in EP Actions, shows current value in name
     options.args["ep_actions"].args["set_min_ep"] = {
       type = "text",
-      name = function() return string.format(L["Set Min EP (Current: %s)"], GuildRoll_minPE) end,
+      -- Dewdrop-2.0 requires 'name' to be a string, not a function.
+      -- Compute the display string at menu-build time so the current value is visible.
+      name = string.format(L["Set Min EP (Current: %s)"], GuildRoll_minPE),
       desc = L["Set Minimum MainStanding"],
       usage = "<minPE>",
       order = 2,
       get = function() return GuildRoll_minPE end,
       set = function(v) 
         GuildRoll_minPE = tonumber(v)
-        -- The name function() wrapper will automatically show updated value on next menu open
+        -- The name will show updated value on next menu open (buildMenu is called each time)
         GuildRoll:refreshPRTablets()
         -- Removed shareSettings call: Minimum EP is now local to each admin
       end,
