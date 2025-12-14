@@ -83,8 +83,14 @@ local PROTOCOL_VERSION = 1
 local CHUNK_SIZE = 10 -- entries per SNAP message
 local SYNC_THROTTLE_SEC = 5 -- minimum seconds between sync requests
 local SNAPSHOT_TIMEOUT_SEC = 10 -- seconds before clearing snapshot in progress flag
+local RETRY_INTERVAL_SEC = 2 -- retry interval for queued messages
+local MAX_RETRIES = 5 -- maximum retry attempts for queued messages
 
 local lastSyncRequest = 0
+
+-- Pending messages queue for roster timing tolerance
+local pending_messages = {}
+local pending_retry_scheduled = false
 
 -- Helper: Get local latest timestamp
 local function getLocalLatestTS()
@@ -97,6 +103,81 @@ local function getLocalLatestTS()
     end
   end
   return maxTS
+end
+
+-- Helper: Debug print (protected by GuildRoll_debugAdminLog)
+local function debugPrint(msg)
+  if GuildRoll_debugAdminLog and msg then
+    pcall(function()
+      if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+        DEFAULT_CHAT_FRAME:AddMessage("[AdminLog Debug] " .. tostring(msg))
+      elseif GuildRoll and GuildRoll.defaultPrint then
+        GuildRoll:defaultPrint("[AdminLog Debug] " .. tostring(msg))
+      end
+    end)
+  end
+end
+
+-- Process pending messages queue
+local function processPendingMessages()
+  pending_retry_scheduled = false
+  
+  if table.getn(pending_messages) == 0 then
+    return
+  end
+  
+  local remaining = {}
+  local now = time()
+  
+  for i = 1, table.getn(pending_messages) do
+    local pending = pending_messages[i]
+    
+    -- Normalize sender
+    local sender_norm = pending.sender and string.gsub(pending.sender, "%-.*$", "") or pending.sender
+    
+    -- Try to verify guild member again
+    local name_g = nil
+    if GuildRoll and GuildRoll.verifyGuildMember then
+      pcall(function()
+        name_g = GuildRoll:verifyGuildMember(sender_norm, true)
+      end)
+    end
+    
+    if name_g then
+      -- Success! Process the message now by recursively calling handleAdminLogMessage
+      debugPrint(string.format("Queued message from %s now verified, processing", sender_norm))
+      
+      pcall(function()
+        handleAdminLogMessage(pending.prefix, pending.message, pending.channel, pending.sender)
+      end)
+      
+      -- Don't add to remaining (message is processed)
+    else
+      -- Still failing, check retry count
+      pending.attempts = (pending.attempts or 0) + 1
+      
+      if pending.attempts >= MAX_RETRIES then
+        -- Max retries reached, drop message
+        debugPrint(string.format("Dropped message from %s after %d retries (sender not verified)", sender_norm, pending.attempts))
+      else
+        -- Keep in queue for next retry
+        debugPrint(string.format("Retry %d/%d for message from %s (sender not verified yet)", pending.attempts, MAX_RETRIES, sender_norm))
+        table.insert(remaining, pending)
+      end
+    end
+  end
+  
+  pending_messages = remaining
+  
+  -- Schedule next retry if there are still pending messages
+  if table.getn(pending_messages) > 0 then
+    if GuildRoll and GuildRoll.ScheduleEvent then
+      pcall(function()
+        GuildRoll:ScheduleEvent("GuildRoll_AdminLog_RetryPending", processPendingMessages, RETRY_INTERVAL_SEC)
+        pending_retry_scheduled = true
+      end)
+    end
+  end
 end
 
 -- Helper: Generate unique ID for log entry
@@ -403,15 +484,59 @@ end
 
 -- Handle incoming admin log messages
 local function handleAdminLogMessage(prefix, message, channel, sender)
-  if not prefix or prefix ~= GuildRoll.VARS.prefix then return end
-  if not message or not string.find(message, "^ADMINLOG;") then return end
+  -- Debug: Log raw incoming message
+  debugPrint(string.format("Received CHAT_MSG_ADDON: prefix=%s, channel=%s, sender=%s", tostring(prefix), tostring(channel), tostring(sender)))
+  
+  -- Check prefix
+  if not prefix or prefix ~= GuildRoll.VARS.prefix then
+    debugPrint("Dropped: prefix mismatch")
+    return
+  end
+  
+  -- Check if message is ADMINLOG
+  if not message or not string.find(message, "^ADMINLOG;") then
+    debugPrint("Dropped: not an ADMINLOG message")
+    return
+  end
+  
+  debugPrint(string.format("ADMINLOG message: %s", string.sub(message, 1, 100)))
   
   -- Normalize sender: remove realm suffix (e.g., Name-Realm -> Name)
   local sender_norm = sender and string.gsub(sender, "%-.*$", "") or sender
   
   -- Verify sender is guild member
-  local name_g = GuildRoll:verifyGuildMember(sender_norm, true)
-  if not name_g then return end
+  local name_g = nil
+  pcall(function()
+    name_g = GuildRoll:verifyGuildMember(sender_norm, true)
+  end)
+  
+  if not name_g then
+    -- Queue message for retry if verifyGuildMember fails
+    debugPrint(string.format("Sender %s not verified as guild member, queueing for retry", sender_norm))
+    
+    table.insert(pending_messages, {
+      prefix = prefix,
+      message = message,
+      channel = channel,
+      sender = sender,
+      attempts = 0,
+      queued_at = time()
+    })
+    
+    -- Schedule retry processor if not already scheduled
+    if not pending_retry_scheduled then
+      if GuildRoll and GuildRoll.ScheduleEvent then
+        pcall(function()
+          GuildRoll:ScheduleEvent("GuildRoll_AdminLog_RetryPending", processPendingMessages, RETRY_INTERVAL_SEC)
+          pending_retry_scheduled = true
+        end)
+      end
+    end
+    
+    return
+  end
+  
+  debugPrint(string.format("Sender %s verified as guild member", sender_norm))
   
   -- Parse message
   local parts = {}
@@ -427,21 +552,31 @@ local function handleAdminLogMessage(prefix, message, channel, sender)
   end
   table.insert(parts, current)
   
-  if table.getn(parts) < 3 then return end
+  if table.getn(parts) < 3 then
+    debugPrint("Dropped: message has fewer than 3 parts")
+    return
+  end
   
   local msgType = parts[2]
   local version = tonumber(parts[3]) or 0
   
+  debugPrint(string.format("Message type: %s, version: %d", msgType, version))
+  
   if version ~= PROTOCOL_VERSION then
-    return -- version mismatch
+    debugPrint(string.format("Dropped: protocol version mismatch (got %d, expected %d)", version, PROTOCOL_VERSION))
+    return
   end
   
   if msgType == "ADD" then
     -- ADMINLOG;ADD;version;serialized_entry
-    if table.getn(parts) < 4 then return end
+    if table.getn(parts) < 4 then
+      debugPrint("Dropped ADD: missing entry data")
+      return
+    end
     local entryData = parts[4]
     local entry = deserializeEntry(entryData)
     if entry then
+      debugPrint(string.format("Applying ADD entry: id=%s, author=%s", entry.id or "nil", entry.author or "nil"))
       applyAdminLogEntry(entry)
       -- Update latestRemoteTS if this entry is newer
       if entry.ts and entry.ts > latestRemoteTS then
@@ -451,22 +586,37 @@ local function handleAdminLogMessage(prefix, message, channel, sender)
       if T and T:IsRegistered("GuildRoll_AdminLog") then
         pcall(function() T:Refresh("GuildRoll_AdminLog") end)
       end
+    else
+      debugPrint("Dropped ADD: failed to deserialize entry")
     end
     
   elseif msgType == "REQ" then
     -- ADMINLOG;REQ;version;since_ts
-    if not GuildRoll:IsAdmin() then return end
+    if not GuildRoll:IsAdmin() then
+      debugPrint("Dropped REQ: not an admin")
+      return
+    end
     
-    if table.getn(parts) < 4 then return end
+    if table.getn(parts) < 4 then
+      debugPrint("Dropped REQ: missing since_ts")
+      return
+    end
     local since_ts = tonumber(parts[4]) or 0
+    
+    debugPrint(string.format("Received REQ from %s, since_ts=%d", sender_norm, since_ts))
     
     -- Send snapshot to requester
     sendSnapshot(sender, since_ts)
     
   elseif msgType == "SNAP" then
     -- ADMINLOG;SNAP;version;chunk_data
-    if table.getn(parts) < 4 then return end
+    if table.getn(parts) < 4 then
+      debugPrint("Dropped SNAP: missing chunk data")
+      return
+    end
     local chunkData = parts[4]
+    
+    debugPrint(string.format("Received SNAP chunk (length %d bytes)", string.len(chunkData)))
     
     -- Split by ;;
     local entries = {}
@@ -503,10 +653,17 @@ local function handleAdminLogMessage(prefix, message, channel, sender)
       end
     end
     
+    debugPrint(string.format("Buffered %d entries from SNAP chunk", table.getn(entries)))
+    
   elseif msgType == "SNAP_END" then
     -- ADMINLOG;SNAP_END;version;total_count
-    if table.getn(parts) < 4 then return end
+    if table.getn(parts) < 4 then
+      debugPrint("Dropped SNAP_END: missing total count")
+      return
+    end
     local totalCount = tonumber(parts[4]) or 0
+    
+    debugPrint(string.format("Received SNAP_END, total=%d, buffered=%d", totalCount, table.getn(snapshotBuffer)))
     
     -- Apply buffered entries
     for i = 1, table.getn(snapshotBuffer) do
@@ -533,6 +690,8 @@ local function handleAdminLogMessage(prefix, message, channel, sender)
   elseif msgType == "CLEAR" then
     -- ADMINLOG;CLEAR;version
     -- Clear local admin log data when received from another admin (typically GuildMaster)
+    debugPrint(string.format("Received CLEAR from %s", sender_norm))
+    
     GuildRoll_adminLogSaved = {}
     GuildRoll_adminLogOrder = {}
     adminLogRuntime = {}
