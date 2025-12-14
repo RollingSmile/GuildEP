@@ -308,14 +308,106 @@ function GuildRoll:buildMenu()
     handler = self,
     args = { }
     }
-    options.args["MainStanding"] = {
+    
+    -- Quick Actions Group
+    options.args["quick_actions"] = {
+      type = "group",
+      name = L["Quick Actions"],
+      desc = "Quick access actions",
+      order = 1,
+      args = {}
+    }
+    
+    options.args["quick_actions"].args["toggle_roll"] = {
+      type = "execute",
+      name = L["Toggle Roll Button"],
+      desc = "Toggle Roll UI (same as Shift+Click)",
+      order = 1,
+      func = function()
+        if GuildRoll_Roll and GuildRoll_Roll.Toggle then
+          GuildRoll_Roll:Toggle()
+        end
+      end
+    }
+    
+    options.args["quick_actions"].args["show_standings"] = {
+      type = "execute",
+      name = L["Show Standings"],
+      desc = "Show Standings window (same as Click)",
+      order = 2,
+      func = function()
+        if GuildRoll_standings and GuildRoll_standings.Toggle then
+          pcall(function()
+            GuildRoll:ToggleModuleActive("GuildRoll_standings", true)
+            GuildRoll_standings:Toggle()
+          end)
+        end
+      end
+    }
+    
+    options.args["quick_actions"].args["show_personal_log"] = {
+      type = "execute",
+      name = L["Show Personal Log"],
+      desc = "Show your personal EP log",
+      order = 3,
+      func = function()
+        if GuildRoll_logs and GuildRoll_logs.ShowPersonalLog then
+          pcall(function()
+            GuildRoll_logs:ShowPersonalLog(GuildRoll._playerName)
+          end)
+        end
+      end
+    }
+    
+    options.args["quick_actions"].args["show_alts"] = {
+      type = "execute",
+      name = L["Show Alts"],
+      desc = "Show Alts window (same as Alt+Click)",
+      order = 4,
+      hidden = function() return not admin() end,
+      func = function()
+        if GuildRollAlts and GuildRollAlts.Toggle then
+          pcall(function()
+            GuildRoll:ToggleModuleActive("GuildRollAlts", true)
+            GuildRollAlts:Toggle()
+          end)
+        end
+      end
+    }
+    
+    options.args["quick_actions"].args["show_admin_log"] = {
+      type = "execute",
+      name = L["Show Admin Log"],
+      desc = "Show Admin Log window (same as Ctrl+Shift+Click)",
+      order = 5,
+      hidden = function() return not admin() end,
+      func = function()
+        if GuildRoll_AdminLog and GuildRoll_AdminLog.Toggle then
+          pcall(function()
+            GuildRoll:ToggleModuleActive("GuildRoll_AdminLog", true)
+            GuildRoll_AdminLog:Toggle()
+          end)
+        end
+      end
+    }
+    
+    -- Options Group
+    options.args["options_group"] = {
+      type = "group",
+      name = L["Options"],
+      desc = "Configuration options",
+      order = 2,
+      args = {}
+    }
+    
+    options.args["options_group"].args["MainStanding"] = {
       type = "group",
       name = L["+MainStanding to Member"],
       desc = L["Account MainStanding for member."],
       order = 10,
       hidden = function() return not (admin()) end,
     }
-    options.args["MainStanding_raid"] = {
+    options.args["options_group"].args["MainStanding_raid"] = {
       type = "execute",
       name = L["+MainStanding to Raid"],
       desc = L["Award MainStanding to all raid members."],
@@ -324,11 +416,28 @@ function GuildRoll:buildMenu()
       hidden = function() return not (admin()) end,
     }
  
-    options.args["alts"] = {
+    options.args["options_group"].args["report_channel"] = {
+      type = "text",
+      name = L["Reporting channel"],
+      desc = L["Channel used by reporting functions."],
+      order = 30,
+      hidden = function() return not (admin()) end,
+      get = function() return GuildRoll_saychannel end,
+      set = function(v) 
+        GuildRoll_saychannel = v
+        -- Share settings to guild if admin
+        if GuildRoll and GuildRoll.shareSettings then
+          GuildRoll:shareSettings()
+        end
+      end,
+      validate = { "PARTY", "RAID", "GUILD", "OFFICER" },
+    }
+    
+    options.args["options_group"].args["alts"] = {
       type = "toggle",
-      name = L["Enable Alts"],
+      name = L["Toggle Alt pooling"],
       desc = L["Allow Alts to use Main\'s Standing."],
-      order = 63,
+      order = 40,
       hidden = function() return not (admin()) end,
       disabled = function() return not (IsGuildLeader()) end,
       get = function() return not not GuildRollAltspool end,
@@ -339,11 +448,11 @@ function GuildRoll:buildMenu()
         end
       end,
     }
-    options.args["alts_percent"] = {
+    options.args["options_group"].args["alts_percent"] = {
       type = "range",
-      name = L["Alts MainStanding %"],
+      name = L["Set Alts %"],
       desc = L["Set the % MainStanding Alts can earn."],
-      order = 66,
+      order = 50,
       hidden = function() return (not GuildRollAltspool) or (not IsGuildLeader()) end,
       get = function() return GuildRoll_altpercent end,
       set = function(v) 
@@ -357,72 +466,49 @@ function GuildRoll:buildMenu()
       step = 0.05,
       isPercent = true
     }
-    options.args["set_main"] = {
-      type = "execute",
-      name = L["Set Main"],
-      desc = L["Set your Main Character."],
-      order = 70,
-      func = function()
-        StaticPopup_Show("GUILDROLL_SET_MAIN_PROMPT")
-      end,
-    }    
-    options.args["migrate_main_tags"] = {
-      type = "execute",
-      name = "Migrate Main Tags",
-      desc = "Move {MainCharacter} tags from public notes to officer notes (GM only).",
-      order = 75,
-      hidden = function() return not IsGuildLeader() end,
-      func = function() 
-        GuildRoll:MovePublicMainTagsToOfficerNotes()
-      end,
-    }
-    options.args["raid_only"] = {
-      type = "toggle",
-      name = L["Raid Only"],
-      desc = L["Only show members in raid."],
-      order = 80,
+    
+    options.args["options_group"].args["set_min_ep_header"] = {
+      type = "header",
+      name = string.format(L["Minimum MainStanding: %s"],GuildRoll_minPE),
+      order = 60,
       hidden = function() return not admin() end,
-      get = function() return not not GuildRoll_memberlist_raidonly end,
-      set = function(v) 
-        GuildRoll_memberlist_raidonly = not GuildRoll_memberlist_raidonly
-        -- Trigger local UI refresh
-        GuildRoll:SetRefresh(true)
-      end,
     }
-    options.args["report_channel"] = {
+    
+    options.args["options_group"].args["set_min_ep"] = {
       type = "text",
-      name = L["Reporting channel"],
-      desc = L["Channel used by reporting functions."],
-      order = 95,
-      hidden = function() return not (admin()) end,
-      get = function() return GuildRoll_saychannel end,
+      name = L["Set Min EP"],
+      desc = L["Set Minimum MainStanding"],
+      usage = "<minPE>",
+      order = 61,
+      get = function() return GuildRoll_minPE end,
       set = function(v) 
-        GuildRoll_saychannel = v
-        -- Share settings to guild if admin
-        if GuildRoll and GuildRoll.shareSettings then
-          GuildRoll:shareSettings()
+        GuildRoll_minPE = tonumber(v)
+        -- Update header immediately if options table exists
+        if GuildRoll._options and GuildRoll._options.args and GuildRoll._options.args["options_group"] and GuildRoll._options.args["options_group"].args["set_min_ep_header"] then
+          GuildRoll._options.args["options_group"].args["set_min_ep_header"].name = string.format(L["Minimum MainStanding: %s"],GuildRoll_minPE)
         end
+        GuildRoll:refreshPRTablets()
+        -- Removed shareSettings call: Minimum EP is now local to each admin
       end,
-      validate = { "PARTY", "RAID", "GUILD", "OFFICER" },
-    }    
-    options.args["decay"] = {
-      type = "execute",
-      name = L["Decay Standing"],
-      desc = string.format(L["Decays all Standing by %s%%"],(1-(GuildRoll_decay or GuildRoll.VARS.decay))*100),
-      order = 100,
-      hidden = function() return not (admin()) end,
-      func = function() GuildRoll:decay_epgp_v3() end 
-    }    
-    options.args["set_decay"] = {
+      validate = function(v) 
+        local n = tonumber(v)
+        return n and n >= 0 and n <= GuildRoll.VARS.max
+      end,
+      hidden = function() return not admin() end,
+    }
+    
+    options.args["options_group"].args["set_decay"] = {
       type = "range",
       name = L["Set Decay %"],
       desc = L["Set Decay percentage (Admin only)."],
-      order = 110,
+      order = 70,
       usage = "<Decay>",
       get = function() return (1.0-GuildRoll_decay) end,
       set = function(v) 
         GuildRoll_decay = (1 - v)
-        options.args["decay"].desc = string.format(L["Decays all Standing by %s%%"],(1-GuildRoll_decay)*100)
+        if GuildRoll._options and GuildRoll._options.args and GuildRoll._options.args["options_group"] and GuildRoll._options.args["options_group"].args["decay"] then
+          GuildRoll._options.args["options_group"].args["decay"].desc = string.format(L["Decays all Standing by %s%%"],(1-GuildRoll_decay)*100)
+        end
         if (IsGuildLeader()) then
           GuildRoll:shareSettings(true)
         end
@@ -434,37 +520,115 @@ function GuildRoll:buildMenu()
       isPercent = true,
       hidden = function() return not (admin()) end,    
     }
-
-    options.args["set_min_ep_header"] = {
-      type = "header",
-      name = string.format(L["Minimum MainStanding: %s"],GuildRoll_minPE),
-      order = 117,
-      hidden = function() return not admin() end,
-    }
-		
-		
-    options.args["set_min_ep"] = {
-      type = "text",
-      name = L["Minimum MainStanding"],
-      desc = L["Set Minimum MainStanding"],
-      usage = "<minPE>",
-      order = 118,
-      get = function() return GuildRoll_minPE end,
-      set = function(v) 
-        GuildRoll_minPE = tonumber(v)
-        -- Update header immediately if options table exists
-        if GuildRoll._options and GuildRoll._options.args and GuildRoll._options.args["set_min_ep_header"] then
-          GuildRoll._options.args["set_min_ep_header"].name = string.format(L["Minimum MainStanding: %s"],GuildRoll_minPE)
+    
+    options.args["options_group"].args["share_settings"] = {
+      type = "execute",
+      name = L["Share Settings"],
+      desc = "Share settings with guild (admin only)",
+      order = 80,
+      hidden = function() return not (admin()) end,
+      func = function() 
+        if GuildRoll and GuildRoll.shareSettings then
+          GuildRoll:shareSettings(true)
         end
-        GuildRoll:refreshPRTablets()
-        -- Removed shareSettings call: Minimum EP is now local to each admin
       end,
-      validate = function(v) 
-        local n = tonumber(v)
-        return n and n >= 0 and n <= GuildRoll.VARS.max
-      end,
-      hidden = function() return not admin() end,
     }
+    
+    options.args["options_group"].args["reset_frames"] = {
+      type = "execute",
+      name = "Reset Frames",
+      desc = "Reset detached frames to visible positions.",
+      order = 90,
+      func = function() GuildRoll:ResetFrames() end
+    }
+    
+    options.args["options_group"].args["export_import"] = {
+      type = "group",
+      name = L["Export/Import"],
+      desc = "Export/Import standings data",
+      order = 100,
+      hidden = function() return not (admin()) end,
+      args = {
+        export = {
+          type = "execute",
+          name = L["Export"],
+          desc = L["Export standings to csv."],
+          order = 1,
+          func = function() 
+            if GuildRoll_standings then
+              GuildRoll_standings:Export()
+            end
+          end
+        },
+        import = {
+          type = "execute",
+          name = L["Import"],
+          desc = L["Import standings from csv."],
+          order = 2,
+          hidden = function() return not IsGuildLeader() end,
+          func = function() 
+            if GuildRoll_standings then
+              GuildRoll_standings:Import()
+            end
+          end
+        }
+      }
+    }
+    
+    options.args["options_group"].args["migrate_main_tags"] = {
+      type = "execute",
+      name = "Migrate Main Tags",
+      desc = "Move {MainCharacter} tags from public notes to officer notes (Admin only).",
+      order = 110,
+      hidden = function() return not admin() end,
+      func = function() 
+        GuildRoll:MovePublicMainTagsToOfficerNotes()
+      end,
+    }
+    
+    options.args["options_group"].args["reset"] = {
+      type = "execute",
+      name = L["Reset Standing"],
+      desc = string.format(L["Resets everyone\'s Standing to 0/%d (Admin only)."],GuildRoll.VARS.baseAE),
+      order = 120,
+      hidden = function() return not (IsGuildLeader()) end,
+      func = function() StaticPopup_Show("CONFIRM_RESET") end
+    }
+    
+    options.args["options_group"].args["set_main"] = {
+      type = "execute",
+      name = L["Set Main"],
+      desc = L["Set your Main Character."],
+      order = 5,
+      func = function()
+        StaticPopup_Show("GUILDROLL_SET_MAIN_PROMPT")
+      end,
+    }
+    
+    -- Keep legacy standalone items that don't belong in either group
+    options.args["raid_only"] = {
+      type = "toggle",
+      name = L["Raid Only"],
+      desc = L["Only show members in raid."],
+      order = 200,
+      hidden = function() return not admin() end,
+      get = function() return not not GuildRoll_memberlist_raidonly end,
+      set = function(v) 
+        GuildRoll_memberlist_raidonly = not GuildRoll_memberlist_raidonly
+        -- Trigger local UI refresh
+        GuildRoll:SetRefresh(true)
+      end,
+    }
+    
+    options.args["decay"] = {
+      type = "execute",
+      name = L["Decay Standing"],
+      desc = string.format(L["Decays all Standing by %s%%"],(1-(GuildRoll_decay or GuildRoll.VARS.decay))*100),
+      order = 210,
+      hidden = function() return not (admin()) end,
+      func = function() GuildRoll:decay_epgp_v3() end 
+    }
+    
     -- Cumulative rank threshold selector for CSR
     -- Visual index 0 = "Select Rank:" (threshold nil)
     -- Visual index 1 = rankIndex 0 (Guild Master) → threshold 0
@@ -563,15 +727,15 @@ function GuildRoll:buildMenu()
     end
 
     -- Add the group to options (replaces the old csr_threshold in options.args)
-    options.args["csr_rank_selector"] = {
+    options.args["options_group"].args["csr_rank_selector"] = {
       type = "group",
       name = L["CSR Threshold"],
       desc = "Select the minimum rank to can use CSR:",
       args = {},
       hidden = function() return not admin() end,
-      order = 119,
+      order = 65,
     }
-    BuildCSRRankRadioGroup(options.args["csr_rank_selector"])
+    BuildCSRRankRadioGroup(options.args["options_group"].args["csr_rank_selector"])
 
     -- Dynamically update rank names when roster changes (create frame only once)
     if not self._csr_update_frame then
@@ -579,18 +743,19 @@ function GuildRoll:buildMenu()
       self._csr_update_frame:RegisterEvent("GUILD_ROSTER_UPDATE")
       self._csr_update_frame:SetScript("OnEvent", function()
         -- Rebuild toggles with updated names
-        if options and options.args and options.args["csr_rank_selector"] then
-          BuildCSRRankRadioGroup(options.args["csr_rank_selector"])
+        if options and options.args and options.args["options_group"] and options.args["options_group"].args["csr_rank_selector"] then
+          BuildCSRRankRadioGroup(options.args["options_group"].args["csr_rank_selector"])
         end
         -- Refresh Dewdrop/Tablet menu if necessary
         if GuildRoll and GuildRoll.RebuildRollOptions then GuildRoll:RebuildRollOptions() end
       end)
     end
-    options.args["show_all_roll_buttons"] = {
+    
+    options.args["options_group"].args["show_all_roll_buttons"] = {
       type = "toggle",
       name = L["Show all Roll Buttons"],
       desc = "When enabled, shows all roll buttons to everyone (Admin only).",
-      order = 130,
+      order = 66,
       hidden = function() return not (admin()) end,
       get = function() return GuildRoll_showAllRollButtons == true end,
       set = function(v)
@@ -599,11 +764,12 @@ function GuildRoll:buildMenu()
         if GuildRoll and GuildRoll.shareSettings then GuildRoll:shareSettings(true) end
       end,
     }
-    options.args["buff_checks"] = {
+    
+    options.args["options_group"].args["buff_checks"] = {
       type = "group",
       name = L["Buff Checks"],
       desc = L["Admin buff verification tools"],
-      order = 96,
+      order = 67,
       hidden = function() return not admin() end,
       args = {
         check_buffs = {
@@ -628,21 +794,6 @@ function GuildRoll:buildMenu()
           func = function() GuildRoll_BuffCheck:CheckFlasks() end
         }
       }
-    }
-    options.args["reset"] = {
-     type = "execute",
-     name = L["Reset Standing"],
-     desc = string.format(L["Resets everyone\'s Standing to 0/%d (Admin only)."],GuildRoll.VARS.baseAE),
-     order = 120,
-     hidden = function() return not (IsGuildLeader()) end,
-     func = function() StaticPopup_Show("CONFIRM_RESET") end
-    }
-    options.args["reset_frames"] = {
-     type = "execute",
-     name = "Reset Frames",
-     desc = "Reset detached frames to visible positions.",
-     order = 125,
-     func = function() GuildRoll:ResetFrames() end
     }
 
   end
@@ -676,7 +827,7 @@ function GuildRoll:buildMenu()
     self._last_scan_member_count = member_count
     self._last_scan_mode = scan_mode
     
-    options.args["MainStanding"].args = GuildRoll:buildClassMemberTable(members,"MainStanding")
+    options.args["options_group"].args["MainStanding"].args = GuildRoll:buildClassMemberTable(members,"MainStanding")
     if (needInit) then needInit = false end
     if (needRefresh) then needRefresh = false end
   end
@@ -1852,7 +2003,7 @@ function GuildRoll:OnTooltipUpdate()
   local common = {
     "|cffffff00Click|r to toggle Standings.",
     "|cffffff00Shift+Click|r to toggle Roll UI.",
-    "|cffffff00Right-Click|r to toggle Options.",
+    "|cffffff00Right-Click|r for Quick Actions and Options.",
     "|cffffff00Ctrl+Click|r to toggle Log.",
     "|cffffff00Alt+Click|r to toggle Alts.",
   }
@@ -2674,6 +2825,32 @@ StaticPopupDialogs["GUILDROLL_AWARD_EP_RAID_HELP"] = {
   end,
   EditBoxOnEscapePressed = function()
     this:GetParent():Hide()
+  end,
+  timeout = 0,
+  exclusive = 1,
+  whileDead = 1,
+  hideOnEscape = 1
+}
+
+StaticPopupDialogs["GUILDROLL_CLEAR_PERSONAL_LOG"] = {
+  text = L["This will permanently delete your personal log. Continue?"],
+  button1 = TEXT(ACCEPT),
+  button2 = TEXT(CANCEL),
+  OnAccept = function()
+    local playerName = GuildRoll._playerName
+    if playerName then
+      -- Clear both saved and runtime personal logs
+      GuildRoll_personalLogSaved[playerName] = nil
+      GuildRoll_personalLogs[playerName] = nil
+      -- Refresh the personal log view
+      if GuildRoll_logs and GuildRoll_logs.RefreshPersonal then
+        GuildRoll_logs:RefreshPersonal()
+      end
+      -- Show confirmation message
+      if GuildRoll and GuildRoll.defaultPrint then
+        GuildRoll:defaultPrint(L["Personal log cleared"])
+      end
+    end
   end,
   timeout = 0,
   exclusive = 1,

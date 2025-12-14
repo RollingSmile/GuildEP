@@ -459,10 +459,26 @@ function GuildRoll_standings:OnTooltipUpdate()
     if ((GuildRoll._playerName) and GuildRoll._playerName == originalName) or ((GuildRoll_main) and GuildRoll_main == originalName) then
       text = string.format("(*)%s",text)
     end
-    cat:AddLine(
-      "text", text,
-      "text2", text2
-    )
+    
+    -- Add line - admins get click-to-award-EP functionality
+    if GuildRoll and GuildRoll.IsAdmin and GuildRoll:IsAdmin() then
+      -- Admin: clicking opens Give EP dialog
+      cat:AddLine(
+        "text", text,
+        "text2", text2,
+        "func", function()
+          if GuildRoll and GuildRoll.ShowGiveEPDialog then
+            GuildRoll:ShowGiveEPDialog(originalName)
+          end
+        end
+      )
+    else
+      -- Non-admin: just display the line
+      cat:AddLine(
+        "text", text,
+        "text2", text2
+      )
+    end
   end
 end
 

@@ -82,6 +82,7 @@ local expandedRaidEntries = {} -- track which raid entries are expanded (key = e
 local PROTOCOL_VERSION = 1
 local CHUNK_SIZE = 10 -- entries per SNAP message
 local SYNC_THROTTLE_SEC = 5 -- minimum seconds between sync requests
+local SNAPSHOT_TIMEOUT_SEC = 10 -- seconds before clearing snapshot in progress flag
 
 local lastSyncRequest = 0
 
@@ -640,7 +641,72 @@ function GuildRoll_AdminLog:OnEnable()
       "showHintWhenDetached", true,
       "cantAttach", true,
       "menu", function()
-        -- Sync option
+        -- Display snapshot state (informational, admin-only)
+        if snapshotInProgress then
+          safeAddLine(
+            "text", L["Snapshot in progress..."],
+            "isTitle", true
+          )
+        end
+        
+        -- Display last remote timestamp (informational, admin-only)
+        local tsText
+        if latestRemoteTS > 0 then
+          tsText = string.format(L["Last remote TS: %s"], date("%Y-%m-%d %H:%M:%S", latestRemoteTS))
+        else
+          tsText = string.format(L["Last remote TS: %s"], L["Never synced"])
+        end
+        safeAddLine(
+          "text", tsText,
+          "isTitle", true
+        )
+        
+        -- Request full sync option
+        safeAddLine(
+          "text", L["Request full sync"],
+          "tooltipText", L["Request snapshot from peers"],
+          "func", function()
+            local since_ts = 0
+            -- Use timestamp of most recent entry as baseline
+            if table.getn(GuildRoll_adminLogOrder) > 0 then
+              local lastId = GuildRoll_adminLogOrder[table.getn(GuildRoll_adminLogOrder)]
+              local lastEntry = adminLogRuntime[lastId]
+              if lastEntry then
+                since_ts = lastEntry.ts
+              end
+            end
+            -- Set snapshot in progress flag
+            snapshotInProgress = true
+            -- Request snapshot
+            requestAdminLogSnapshot(since_ts)
+            -- Schedule timeout to clear snapshot flag after reasonable time
+            pcall(function()
+              if GuildRoll and GuildRoll.ScheduleEvent then
+                GuildRoll:ScheduleEvent("GuildRoll_AdminLog_ClearSnapshotFlag", function()
+                  snapshotInProgress = false
+                  if T and T:IsRegistered("GuildRoll_AdminLog") then
+                    pcall(function() T:Refresh("GuildRoll_AdminLog") end)
+                  end
+                end, SNAPSHOT_TIMEOUT_SEC)
+              end
+            end)
+            -- Refresh UI to show "in progress" state
+            if T and T:IsRegistered("GuildRoll_AdminLog") then
+              pcall(function() T:Refresh("GuildRoll_AdminLog") end)
+            end
+          end,
+          "disabled", function()
+            -- Throttle sync requests
+            local now = time()
+            if (now - lastSyncRequest) < SYNC_THROTTLE_SEC then
+              return true
+            end
+            -- Disable if snapshot already in progress
+            return snapshotInProgress
+          end
+        )
+        
+        -- Sync option (renamed from "Sync" to avoid confusion)
         safeAddLine(
           "text", "Sync",
           "tooltipText", "Request admin log sync from other admins",
