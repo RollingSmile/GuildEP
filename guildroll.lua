@@ -425,11 +425,7 @@ function GuildRoll:buildMenu()
       get = function() return GuildRoll_minPE end,
       set = function(v) 
         GuildRoll_minPE = tonumber(v)
-        -- Update the name dynamically if options table exists
-        if GuildRoll._options and GuildRoll._options.args and GuildRoll._options.args["ep_actions"] and GuildRoll._options.args["ep_actions"].args["set_min_ep"] then
-          -- Force name refresh by triggering menu rebuild on next open
-          -- The function() wrapper will automatically show updated value
-        end
+        -- The name function() wrapper will automatically show updated value on next menu open
         GuildRoll:refreshPRTablets()
         -- Removed shareSettings call: Minimum EP is now local to each admin
       end,
