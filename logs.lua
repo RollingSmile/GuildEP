@@ -257,8 +257,30 @@ function GuildRoll_logs:registerPersonalTablet()
     end,
     "showTitleWhenDetached", true,
     "showHintWhenDetached", true,
-    "cantAttach", true
-    -- menu intentionally removed: personal tablet has no menu or commands
+    "cantAttach", true,
+    "menu", function()
+      -- Safe wrapper for D:AddLine to prevent Dewdrop crashes
+      local function safeAddLine(...)
+        pcall(D.AddLine, D, unpack(arg))
+      end
+      
+      -- Only show "Clear personal log" if viewing own log
+      if currentPersonalName and currentPersonalName == GuildRoll._playerName then
+        safeAddLine(
+          "text", L["Clear personal log"],
+          "tooltipText", L["Clear your personal log"],
+          "func", function() 
+            StaticPopup_Show("GUILDROLL_CLEAR_PERSONAL_LOG")
+          end
+        )
+      end
+      
+      safeAddLine(
+        "text", L["Refresh"],
+        "tooltipText", L["Refresh window"],
+        "func", function() GuildRoll_logs:RefreshPersonal() end
+      )
+    end
   )
   
   -- Ensure tooltip has a valid owner to prevent "Detached tooltip has no owner" error

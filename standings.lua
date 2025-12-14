@@ -459,10 +459,30 @@ function GuildRoll_standings:OnTooltipUpdate()
     if ((GuildRoll._playerName) and GuildRoll._playerName == originalName) or ((GuildRoll_main) and GuildRoll_main == originalName) then
       text = string.format("(*)%s",text)
     end
-    cat:AddLine(
-      "text", text,
-      "text2", text2
-    )
+    
+    -- Add line with right-click menu support for admins
+    if GuildRoll and GuildRoll.IsAdmin and GuildRoll:IsAdmin() then
+      -- Admin: add right-click menu with "Give EP..." option
+      cat:AddLine(
+        "text", text,
+        "text2", text2,
+        "hasCheck", true,
+        "func", function(button)
+          if button == "RightButton" then
+            -- Right-click: show Give EP dialog
+            if GuildRoll and GuildRoll.ShowGiveEPDialog then
+              GuildRoll:ShowGiveEPDialog(originalName)
+            end
+          end
+        end
+      )
+    else
+      -- Non-admin: just display the line
+      cat:AddLine(
+        "text", text,
+        "text2", text2
+      )
+    end
   end
 end
 
