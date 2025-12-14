@@ -599,6 +599,36 @@ function GuildRoll:buildMenu()
         if GuildRoll and GuildRoll.shareSettings then GuildRoll:shareSettings(true) end
       end,
     }
+    options.args["buff_checks"] = {
+      type = "group",
+      name = L["Buff Checks"],
+      desc = L["Admin buff verification tools"],
+      order = 96,
+      hidden = function() return not admin() end,
+      args = {
+        check_buffs = {
+          type = "execute",
+          name = L["Check Buffs"],
+          desc = L["Check raid-level buffs required (special paladin rule)."],
+          order = 1,
+          func = function() GuildRoll_BuffCheck:CheckBuffs() end
+        },
+        check_consumes = {
+          type = "execute",
+          name = L["Check Consumes"],
+          desc = L["Check raid consumes per-class and propose awarding EP."],
+          order = 2,
+          func = function() GuildRoll_BuffCheck:CheckConsumes() end
+        },
+        check_flasks = {
+          type = "execute",
+          name = L["Check Flasks"],
+          desc = L["Check raid flasks per-class."],
+          order = 3,
+          func = function() GuildRoll_BuffCheck:CheckFlasks() end
+        }
+      }
+    }
     options.args["reset"] = {
      type = "execute",
      name = L["Reset Standing"],
