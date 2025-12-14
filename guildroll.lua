@@ -2375,12 +2375,12 @@ function GuildRoll:CheckAltAndPromptSetMain()
   end
   
   -- Check condition 2: player level >= 60
-  if not playerLevel or tonumber(playerLevel) < 60 then
+  if not playerLevel or (tonumber(playerLevel) or playerLevel) < 60 then
     return
   end
   
   -- Check condition 3: officer note does NOT contain a main tag {Name}
-  -- Pattern {%a%a%a*} matches { followed by at least 2 letters, then any more letters, then }
+  -- Pattern {%a%a%a*} matches { followed by 2+ letters then }
   if string.find(playerOfficerNote, "{%a%a%a*}") then
     return
   end
