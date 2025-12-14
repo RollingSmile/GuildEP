@@ -1149,6 +1149,10 @@ StaticPopupDialogs["GUILDROLL_ADMINLOG_CLEAR_CONFIRM"] = {
         if ok then
           broadcastSuccess = true
         else
+          -- Log error for debugging
+          if GuildRoll and GuildRoll.Debug then
+            pcall(function() GuildRoll:Debug("AdminLog clear broadcast failed: " .. tostring(err)) end)
+          end
           GuildRoll:defaultPrint("Warning: Failed to broadcast clear message to guild. Other admins will not be notified.")
         end
       end
