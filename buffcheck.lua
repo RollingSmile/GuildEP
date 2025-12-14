@@ -1,5 +1,5 @@
 -- Guard: Check if required libraries are available before proceeding
-local T, D, C, L
+local T, D, C, L, BC
 do
   local ok, result = pcall(function() return AceLibrary("Tablet-2.0") end)
   if not ok or not result then return end
@@ -17,6 +17,12 @@ do
   if not ok or not result or type(result.new) ~= "function" then return end
   ok, L = pcall(function() return result:new("guildroll") end)
   if not ok or not L then return end
+  
+  -- Optional: Babble-Class-2.2 for class name normalization
+  ok, result = pcall(function() return AceLibrary("Babble-Class-2.2") end)
+  if ok and result then
+    BC = result
+  end
 end
 
 GuildRoll_BuffCheck = GuildRoll:NewModule("GuildRoll_BuffCheck", "AceDB-2.0")
@@ -137,11 +143,13 @@ local FLASKS = {
 -- StaticPopup dialogs (defined once at module initialization)
 StaticPopupDialogs["GUILDROLL_CONSUMES_AWARD_EP"] = {
   text = "",  -- Will be set dynamically via L[] lookup
-  button1 = TEXT(OKAY),
+  button1 = L["Give EP"] or "Give EP",
   button2 = TEXT(CANCEL),
   OnAccept = function()
-    -- User must manually award EP - this just confirms readiness
-    GuildRoll:defaultPrint(L["ConsumesCheck_ReadyToAward"] or "All members ready. Use +EP to Raid to award points.")
+    -- Call the existing Give EP flow
+    pcall(function()
+      GuildRoll:PromptAwardRaidEP()
+    end)
   end,
   timeout = 0,
   whileDead = 1,
@@ -150,16 +158,38 @@ StaticPopupDialogs["GUILDROLL_CONSUMES_AWARD_EP"] = {
 
 StaticPopupDialogs["GUILDROLL_FLASKS_AWARD_EP"] = {
   text = "",  -- Will be set dynamically via L[] lookup
-  button1 = TEXT(OKAY),
+  button1 = L["Give EP"] or "Give EP",
   button2 = TEXT(CANCEL),
   OnAccept = function()
-    -- User must manually award EP - this just confirms readiness
-    GuildRoll:defaultPrint(L["FlasksCheck_ReadyToAward"] or "All members ready. Use +EP to Raid to award points.")
+    -- Call the existing Give EP flow
+    pcall(function()
+      GuildRoll:PromptAwardRaidEP()
+    end)
   end,
   timeout = 0,
   whileDead = 1,
   hideOnEscape = 1,
 }
+
+-- Helper: Normalize class token to English uppercase (e.g. "Krieger" -> "WARRIOR")
+-- Falls back to uppercase if Babble-Class not available
+local function NormalizeClassToken(classString)
+  if not classString then return nil end
+  
+  -- Try Babble-Class reverse translation if available
+  if BC and BC.HasReverseTranslation and BC.GetReverseTranslation then
+    local ok, hasReverse = pcall(BC.HasReverseTranslation, BC, classString)
+    if ok and hasReverse then
+      local ok2, reversed = pcall(BC.GetReverseTranslation, BC, classString)
+      if ok2 and reversed then
+        return string.upper(reversed)
+      end
+    end
+  end
+  
+  -- Fallback: uppercase the provided string
+  return string.upper(classString)
+end
 
 -- Helper: substring match for buff names (case-insensitive)
 local function MatchBuff(buffName, pattern)
@@ -247,7 +277,7 @@ local function IsClassInRaid(className)
   
   for i = 1, numRaid do
     local _, _, _, _, class = GetRaidRosterInfo(i)
-    if class == className then
+    if class and NormalizeClassToken(class) == className then
       return true
     end
   end
@@ -262,7 +292,7 @@ local function CountClassInRaid(className)
   local count = 0
   for i = 1, numRaid do
     local _, _, _, _, class = GetRaidRosterInfo(i)
-    if class == className then
+    if class and NormalizeClassToken(class) == className then
       count = count + 1
     end
   end
