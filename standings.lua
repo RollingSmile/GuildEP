@@ -460,19 +460,15 @@ function GuildRoll_standings:OnTooltipUpdate()
       text = string.format("(*)%s",text)
     end
     
-    -- Add line with right-click menu support for admins
+    -- Add line - admins get click-to-award-EP functionality
     if GuildRoll and GuildRoll.IsAdmin and GuildRoll:IsAdmin() then
-      -- Admin: add right-click menu with "Give EP..." option
+      -- Admin: clicking opens Give EP dialog
       cat:AddLine(
         "text", text,
         "text2", text2,
-        "hasCheck", true,
-        "func", function(button)
-          if button == "RightButton" then
-            -- Right-click: show Give EP dialog
-            if GuildRoll and GuildRoll.ShowGiveEPDialog then
-              GuildRoll:ShowGiveEPDialog(originalName)
-            end
+        "func", function()
+          if GuildRoll and GuildRoll.ShowGiveEPDialog then
+            GuildRoll:ShowGiveEPDialog(originalName)
           end
         end
       )
