@@ -9,13 +9,13 @@ TESTING INSTRUCTIONS:
    Then /reload
 
 2. Test with two admin clients online:
-   - Client A: /gadminlog add "Test entry from A"
-   - Client B: Should automatically receive the entry (check with /gadminlog or UI)
+   - Client A: Add entry via AdminLog UI (Ctrl+Shift+Click on minimap button)
+   - Client B: Should automatically receive the entry (check with AdminLog UI)
    - Verify both clients show the same entry
 
 3. Test snapshot sync:
    - Client A adds several entries while Client B is offline
-   - Client B comes back online and runs: /gadminlog sync
+   - Client B comes back online (automatic sync should occur)
    - Verify Client B receives only the entries added while offline
 
 4. Verify persistence:
@@ -26,6 +26,7 @@ NOTES:
 - Only admins (with CanEditOfficerNote or IsGuildLeader) can add entries and request snapshots
 - Throttling is conservative; for very large logs, consider limiting snapshots to last N entries
 - This module is isolated and does not modify existing logs.lua
+- Access the AdminLog UI via Ctrl+Shift+Click on the minimap button
 --]]
 
 --[[
@@ -1057,48 +1058,3 @@ StaticPopupDialogs["GUILDROLL_ADMINLOG_CLEAR_CONFIRM"] = {
   whileDead = 1,
   hideOnEscape = 1
 }
-
--- Slash commands
-SLASH_GADMINLOG1 = "/gadminlog"
-SlashCmdList["GADMINLOG"] = function(msg)
-  if not GuildRoll then
-    DEFAULT_CHAT_FRAME:AddMessage("GuildRoll not loaded.")
-    return
-  end
-  
-  local cmd, rest = msg:match("^(%S*)%s*(.-)$")
-  cmd = string.lower(cmd or "")
-  
-  if cmd == "add" then
-    GuildRoll:AdminLogAdd(rest)
-  elseif cmd == "sync" then
-    local since_ts = 0
-    if table.getn(GuildRoll_adminLogOrder) > 0 then
-      local lastId = GuildRoll_adminLogOrder[table.getn(GuildRoll_adminLogOrder)]
-      local lastEntry = adminLogRuntime[lastId]
-      if lastEntry then
-        since_ts = lastEntry.ts
-      end
-    end
-    GuildRoll:RequestAdminLogSnapshot(since_ts)
-  elseif cmd == "find" then
-    searchText = rest
-    if T and T:IsRegistered("GuildRoll_AdminLog") then
-      pcall(function() T:Refresh("GuildRoll_AdminLog") end)
-    end
-    GuildRoll:defaultPrint(string.format("Search set to: %s", rest))
-  elseif cmd == "show" then
-    if T and T:IsRegistered("GuildRoll_AdminLog") then
-      GuildRoll_AdminLog:Toggle()
-    end
-  elseif cmd == "info" then
-    GuildRoll:defaultPrint(string.format("Admin log entries: %d", table.getn(GuildRoll_adminLogOrder)))
-  else
-    GuildRoll:defaultPrint("AdminLog commands:")
-    GuildRoll:defaultPrint("/gadminlog add <text> - Add new admin log entry")
-    GuildRoll:defaultPrint("/gadminlog sync - Request sync from other admins")
-    GuildRoll:defaultPrint("/gadminlog find <text> - Search admin log")
-    GuildRoll:defaultPrint("/gadminlog show - Toggle admin log UI")
-    GuildRoll:defaultPrint("/gadminlog info - Show admin log stats")
-  end
-end
