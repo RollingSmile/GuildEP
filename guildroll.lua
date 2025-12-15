@@ -861,6 +861,7 @@ function GuildRoll:OnInitialize() -- ADDON_LOADED (1) unless LoD
   if GuildRoll_looted == nil then GuildRoll_looted = {} end
   if GuildRoll_debug == nil then GuildRoll_debug = {} end
   if GuildRoll_showAllRollButtons == nil then GuildRoll_showAllRollButtons = false end
+  if GuildRoll_debugAdminLog == nil then GuildRoll_debugAdminLog = false end
   --if GuildRoll_showRollWindow == nil then GuildRoll_showRollWindow = true end
   -- Initialize runtime-only raid filter flags (not saved to SavedVariables)
   GuildRoll_memberlist_raidonly = false
@@ -956,6 +957,13 @@ function GuildRoll:AceEvent_FullyInitialized() -- SYNTHETIC EVENT, later than PL
   end
 
   self:testMain()
+
+  -- Auto-enable AdminLog module for admins
+  if self:IsAdmin() then
+    pcall(function()
+      self:ToggleModuleActive("GuildRoll_AdminLog", true)
+    end)
+  end
 
   local delay = 2
   if self:IsEventRegistered("AceEvent_FullyInitialized") then
