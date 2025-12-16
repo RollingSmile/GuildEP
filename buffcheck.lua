@@ -462,7 +462,7 @@ function GuildRoll_BuffCheck:CheckBuffs()
   local report = {}
   local allOk = true
   
-  -- Check which provider classes are present (using BUFF_IDS)
+  -- Dynamic buff requirement calculation based on raid composition
   local providers = {}
   for class, _ in pairs(BUFF_IDS) do
     if IsClassInRaid(class) then
@@ -470,14 +470,29 @@ function GuildRoll_BuffCheck:CheckBuffs()
     end
   end
   
-  -- Special handling for Paladins
+  -- Calculate required buffs dynamically
   local numPaladins = CountClassInRaid("PALADIN")
-  local requiredBlessings = math.min(numPaladins, 5) -- 5 blessing types
+  local requiredBlessings = math.min(numPaladins, 5) -- Up to 5 blessing types
+  
+  -- Calculate total required buffs for each player
+  local totalRequired = 0
+  for providerClass, _ in pairs(providers) do
+    if providerClass ~= "PALADIN" then
+      totalRequired = totalRequired + 1
+    end
+  end
+  -- Add Paladin blessings to total if applicable
+  if providers["PALADIN"] and requiredBlessings > 0 then
+    totalRequired = totalRequired + requiredBlessings
+  end
   
   -- Scan each raid member
   for i = 1, numRaid do
     local name, _, _, _, class = GetRaidRosterInfo(i)
     local unit = "raid" .. i
+    
+    local missingBuffs = {}
+    local missingCount = 0
     
     -- Check regular buffs (non-paladin) using localized maps
     for providerClass, _ in pairs(providers) do
@@ -485,13 +500,8 @@ function GuildRoll_BuffCheck:CheckBuffs()
         local buffMap = localizedBuffs[providerClass]
         local hasBuff, matchedBuff = HasAnyBuffByMap(unit, buffMap)
         if not hasBuff then
-          allOk = false
-          table.insert(report, {
-            player = name,
-            class = class,
-            missing = providerClass .. " buff",
-            type = "buff"
-          })
+          table.insert(missingBuffs, providerClass)
+          missingCount = missingCount + 1
         end
       end
     end
@@ -500,16 +510,29 @@ function GuildRoll_BuffCheck:CheckBuffs()
     if providers["PALADIN"] and requiredBlessings > 0 then
       local blessingCount = CountPaladinBlessings(unit)
       if blessingCount < requiredBlessings then
-        allOk = false
-        table.insert(report, {
-          player = name,
-          class = class,
-          missing = string.format("Paladin blessings (%d/%d)", blessingCount, requiredBlessings),
-          type = "paladin"
-        })
+        local missingBlessings = requiredBlessings - blessingCount
+        table.insert(missingBuffs, string.format("Paladin(%d)", missingBlessings))
+        missingCount = missingCount + missingBlessings
       end
     end
+    
+    -- Only add to report if player has missing buffs
+    if missingCount > 0 then
+      allOk = false
+      table.insert(report, {
+        player = name,
+        class = class,
+        missingCount = missingCount,
+        totalRequired = totalRequired,
+        missingList = table.concat(missingBuffs, ";")
+      })
+    end
   end
+  
+  -- Sort report by number of missing buffs (descending)
+  table.sort(report, function(a, b)
+    return a.missingCount > b.missingCount
+  end)
   
   -- Show results in Tablet
   self:ShowReport(report, "Buff Check", allOk)
@@ -854,24 +877,31 @@ function GuildRoll_BuffCheck:OnTooltipUpdate()
     cat:AddLine("text", L["BuffCheck_Header"] or "Run a check to see results.")
   else
     local cat = T:AddCategory(
-      "columns", 3,
+      "columns", 4,
       "text", L["Name"] or "Name",
       "text2", "Class",
-      "text3", "Missing"
+      "text3", "Missing",
+      "text4", "Details"
     )
     
     for _, entry in ipairs(report) do
-      local missingText = entry.missing
-      if entry.type == "paladin" then
-        missingText = C:Orange(missingText)
-      else
-        missingText = C:Red(missingText)
+      -- Format count as "X/Y" where X is missing and Y is total required
+      local countText = string.format("%d/%d", entry.missingCount, entry.totalRequired)
+      
+      -- Highlight based on severity (more missing = more critical)
+      local countColor = C:Red(countText)
+      if entry.missingCount <= 2 then
+        countColor = C:Orange(countText)
       end
+      
+      -- Format missing buffs list with color
+      local detailsColor = C:Red(entry.missingList)
       
       cat:AddLine(
         "text", entry.player,
         "text2", entry.class,
-        "text3", missingText
+        "text3", countColor,
+        "text4", detailsColor
       )
     end
   end
