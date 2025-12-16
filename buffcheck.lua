@@ -27,6 +27,9 @@ end
 
 GuildRoll_BuffCheck = GuildRoll:NewModule("GuildRoll_BuffCheck", "AceDB-2.0")
 
+-- Configuration: Missing buff severity threshold for color coding
+local BUFF_MISSING_SEVERITY_THRESHOLD = 2
+
 -- Spell ID tables for buffs by provider class (Turtle WoW 1.12)
 -- WARRIOR intentionally removed - Battle Shout is not checked
 local BUFF_IDS = {
@@ -890,7 +893,7 @@ function GuildRoll_BuffCheck:OnTooltipUpdate()
       
       -- Highlight based on severity (more missing = more critical)
       local countColor = C:Red(countText)
-      if entry.missingCount <= 2 then
+      if entry.missingCount <= BUFF_MISSING_SEVERITY_THRESHOLD then
         countColor = C:Orange(countText)
       end
       
