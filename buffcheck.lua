@@ -332,6 +332,7 @@ local FLASKS = {
   "Flask of Distilled Wisdom",
   "Flask of Supreme Power",
   "Flask of the Titans",
+  "Well Fed"
 }
 
 -- Localized name maps (populated by resolveIDLists)
