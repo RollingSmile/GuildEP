@@ -858,7 +858,6 @@ function GuildRoll:OnInitialize() -- ADDON_LOADED (1) unless LoD
  -- if GuildRoll_discount == nil then GuildRoll_discount = 0.25 end
   if GuildRollAltspool == nil then GuildRollAltspool = true end
   if GuildRoll_altpercent == nil then GuildRoll_altpercent = 1.0 end
-  if GuildRoll_looted == nil then GuildRoll_looted = {} end
   if GuildRoll_debug == nil then GuildRoll_debug = {} end
   if GuildRoll_showAllRollButtons == nil then GuildRoll_showAllRollButtons = false end
   if GuildRoll_debugAdminLog == nil then GuildRoll_debugAdminLog = false end
@@ -3411,5 +3410,5 @@ function GuildRollMSG:OnCHAT_MSG_ADDON( prefix, text, channel, sender)
 		end
 end
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_looted,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs
