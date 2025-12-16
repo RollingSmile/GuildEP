@@ -30,6 +30,12 @@ GuildRoll_BuffCheck = GuildRoll:NewModule("GuildRoll_BuffCheck", "AceDB-2.0")
 -- Configuration: Missing buff severity threshold for color coding
 local BUFF_MISSING_SEVERITY_THRESHOLD = 2
 
+-- Configuration: Minimum required consumables per player
+local CONSUMABLE_MIN_REQUIRED = 4
+
+-- Configuration: Minimum required flasks per player
+local FLASK_MIN_REQUIRED = 1
+
 -- Spell ID tables for buffs by provider class (Turtle WoW 1.12)
 -- WARRIOR intentionally removed - Battle Shout is not checked
 local BUFF_IDS = {
@@ -623,7 +629,7 @@ function GuildRoll_BuffCheck:CheckConsumes()
   
   local report = {}
   local allOk = true
-  local minRequired = 4
+  local minRequired = CONSUMABLE_MIN_REQUIRED
   
   for i = 1, numRaid do
     local name, _, _, _, class = GetRaidRosterInfo(i)
@@ -694,7 +700,7 @@ function GuildRoll_BuffCheck:CheckFlasks()
   
   local report = {}
   local allOk = true
-  local minRequired = 1
+  local minRequired = FLASK_MIN_REQUIRED
   
   for i = 1, numRaid do
     local name, _, _, _, class = GetRaidRosterInfo(i)
