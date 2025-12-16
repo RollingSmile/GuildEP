@@ -880,11 +880,10 @@ function GuildRoll_BuffCheck:OnTooltipUpdate()
     cat:AddLine("text", L["BuffCheck_Header"] or "Run a check to see results.")
   else
     local cat = T:AddCategory(
-      "columns", 4,
+      "columns", 3,
       "text", L["Name"] or "Name",
-      "text2", "Class",
-      "text3", "Missing",
-      "text4", "Details"
+      "text2", "Missing",
+      "text3", "Details"
     )
     
     for _, entry in ipairs(report) do
@@ -902,9 +901,8 @@ function GuildRoll_BuffCheck:OnTooltipUpdate()
       
       cat:AddLine(
         "text", entry.player,
-        "text2", entry.class,
-        "text3", countColor,
-        "text4", detailsColor
+        "text2", countColor,
+        "text3", detailsColor
       )
     end
   end
