@@ -305,7 +305,7 @@ local CONSUMABLES = {
     "Le Fishe Au Chocolat",
     "Grilled Squid",
     "Sour Mountain Berry",
-    "Strike of the Scorpok",
+    --"Strike of the Scorpok",
     "Mana Regeneration"
   },
 }
