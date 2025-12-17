@@ -26,7 +26,6 @@ GuildRoll.VARS = {
   bop = C:Red("BoP"),
   boe = C:Yellow("BoE"),
   nobind = C:White("NoBind"), 
-  -- bankde removed: legacy PUG/Bank support removed
   reminder = C:Red("Unassigned"), 
   HostGuildName = "!",
   HostLeadName = "!" 
@@ -39,7 +38,6 @@ GuildRollMSG = {
 	RequestHostInfoUpdate = "RequestHostInfoUpdate",
 	RequestHostInfoUpdateTS = 0,
 	HostInfoUpdate = "HostInfoUpdate"
-	-- PugStandingUpdate removed: legacy PUG comms removed
 
 }
 GuildRoll._playerName = (UnitName("player"))
@@ -52,8 +50,6 @@ local guildep_debugchat
 local running_check,running_bid
 local partyUnit,raidUnit = {},{}
 local hexColorQuality = {}
--- Forward-declare RaidKey e zone_multipliers prima che vengano usati
--- (la mappatura completa verrà assegnata più sotto; qui assicuriamo che non siano nil)
 local RaidKey = {}
 local zone_multipliers = {}
 -- Forward-declare handler for SHARE: admin settings so addonComms can call it early
@@ -91,10 +87,10 @@ local function _trim_public_with_tag(existing, tag, maxlen)
   end
 end
 
--- Helper: insert tag before {EP:GP} pattern in officer note
+-- Helper: insert tag before {EP} pattern in officer note
 -- officernote: current officer note
 -- tag: tag to insert
--- Returns: new officer note with tag inserted before {EP:GP} pattern
+-- Returns: new officer note with tag inserted before {EP} pattern
 local function _insertTagBeforeEP(officernote, tag)
   -- Ensure inputs are strings
   if type(officernote) ~= "string" then officernote = "" end
@@ -2013,7 +2009,7 @@ function GuildRoll:my_epgp_announce(use_main)
     ep,gp = (self:get_ep_v3(self._playerName) or 0), (self:get_gp_v3(self._playerName) or GuildRoll.VARS.baseAE)
   end
   local baseRoll = GuildRoll:GetBaseRollValue(ep,gp)
-  local msg = string.format(L["You now have: %d MainStanding %d AuxStanding + (%d)"], ep,gp,baseRoll)
+  local msg = string.format(L["You now have: %d MainStanding"], ep)
   self:defaultPrint(msg)
 end
 
@@ -2113,7 +2109,7 @@ function GuildRoll:OnTooltipUpdate()
   local common = {
     "|cffffff00Click|r to toggle Standings.",
     "|cffffff00Shift+Click|r to toggle Roll UI.",
-    "|cffffff00Right-Click|r for Quick Actions and Options.",
+    "|cffffff00Right-Click|r for Options.",
     "|cffffff00Ctrl+Click|r to toggle Log.",
   }
 
@@ -2936,11 +2932,11 @@ StaticPopupDialogs["GUILDROLL_AWARD_EP_RAID_HELP"] = {
   maxLetters = 10,
   OnShow = function()
     local zoneHelp = {
-      NAX = {prefill = 7, text = "Naxx - 7 EP for using FLASK + 7 EP for attendance."},
-      AQ40 = {prefill = 5, text = "AQ40 - 5 EP for using FLASK + 5 EP for attendance."},
-      BWL = {prefill = 3, text = "BWL - 3 EP for using more than 3 types of CONSUMMS + 3 EP for attendance."},
-      ES = {prefill = 3, text = "ES  - 3 EP for using more than 3 types of CONSUMMS + 3 EP for attendance."},
-      MC = {prefill = 2, text = "MC  - 2 EP for using more than 3 types of CONSUMMS + 2 EP for attendance."}
+      NAX = {prefill = 7, text = "Naxx - 7 EP for FLASK/attendance."},
+      AQ40 = {prefill = 5, text = "AQ40 - 5 EP for FLASK/attendance."},
+      BWL = {prefill = 3, text = "BWL - 3 EP for CONSUMMS/attendance."},
+      ES = {prefill = 3, text = "ES  - 3 EP for CONSUMMS/attendance."},
+      MC = {prefill = 2, text = "MC  - 2 EP for CONSUMMS/attendance."}
     }
     
     local suggested = GuildRoll.VARS.baseawardpoints
