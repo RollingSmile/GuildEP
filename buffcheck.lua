@@ -57,6 +57,7 @@ local BUFF_REQUIREMENTS = {
     "Divine Spirit",
     "Prayer of Spirit",
     "Shadow Protection",
+    "Prayer of Shadow Protection"
   },
   MAGE = {
     "Arcane Intellect",
@@ -201,7 +202,7 @@ local CONSUMABLES = {
     "Swiftness of Zanza",
     "Elixir of the Mongoose",
     "Juju Might",
-    "Ground Scorpok Assay",
+    "Strike of the Scorpok",
     "Elixir of Giants",
     "Elixir of Fortitude",
     "Elixir of Superior Defense",
@@ -284,7 +285,7 @@ local CONSUMABLES = {
     "Swiftness of Zanza",
     "Elixir of the Mongoose",
     "Juju Might",
-    "Ground Scorpok Assay",
+    "Strike of the Scorpok",
     "Elixir of Giants",
     "R.O.I.D.S.",
     "Elemental Sharpening Stone",
@@ -305,7 +306,7 @@ local CONSUMABLES = {
     "Le Fishe Au Chocolat",
     "Grilled Squid",
     "Sour Mountain Berry",
-    --"Strike of the Scorpok",
+    "Strike of the Scorpok",
     "Mana Regeneration"
   },
 }
@@ -332,7 +333,6 @@ local FLASKS = {
   "Flask of Distilled Wisdom",
   "Flask of Supreme Power",
   "Flask of the Titans",
-  "Well Fed"
 }
 
 -- Localized name maps (populated by resolveIDLists)
@@ -1248,7 +1248,7 @@ function GuildRoll_BuffCheck:OnTooltipUpdate()
   
   if allOk then
     local cat = T:AddCategory("columns", 1)
-    cat:AddLine("text", C:Green(L["BuffCheck_AllOk"] or "All members have required buffs/consumables!"))
+    cat:AddLine("text", C:Green(L["BuffCheck_AllOk"] or "All members have all possible class buffs!"))
     return
   end
   
