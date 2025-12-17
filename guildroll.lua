@@ -1959,7 +1959,7 @@ function GuildRoll:decay_epgp_v3()
       self:update_epgp_v3(ep,gp,i,name,officernote,"DECAY")
     end
   end
-  local msg = string.format(L["All Standing decayed by %s%%"],(1-GuildRoll_decay)*100)
+  local msg = string.format(L["DecayAnnounce"], (1 - (GuildRoll_decay or GuildRoll.VARS.decay)) * 100)
   self:simpleSay(msg)
   if not (GuildRoll_saychannel=="OFFICER") then self:adminSay(msg) end
   local addonMsg = string.format("ALL;DECAY;%s",(1-(GuildRoll_decay or GuildRoll.VARS.decay))*100)
