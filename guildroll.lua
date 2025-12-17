@@ -1028,6 +1028,14 @@ function GuildRoll:delayedInit()
   -- init options and comms
   self._options = self:buildMenu()
   self:RegisterChatCommand({"/groll"},self.cmdtable())
+  
+  -- Register /grollnogp migration command for admins
+  if admin() then
+    self:RegisterChatCommand({"/grollnogp"}, function()
+      GuildRoll:RemoveGPFromOfficerNotes()
+    end)
+  end
+  
   function GuildRoll:calculateBonus(input)
     local number = tonumber(input)
     if not number or number < 0 or number > 15 then
@@ -1164,7 +1172,20 @@ function GuildRoll:widestAudience(msg)
 end
 
 function GuildRoll:addonMessage(message,channel,sender)
-  SendAddonMessage(self.VARS.prefix,message,channel,sender)
+  -- Try to use ChatThrottleLib if available for better reliability
+  local hasChatThrottle, ChatThrottleLib = pcall(function()
+    return AceLibrary("ChatThrottleLib")
+  end)
+  
+  if hasChatThrottle and ChatThrottleLib and ChatThrottleLib.SendAddonMessage then
+    -- Use ChatThrottleLib for throttled sending
+    pcall(function()
+      ChatThrottleLib:SendAddonMessage("NORMAL", self.VARS.prefix, message, channel, sender)
+    end)
+  else
+    -- Fallback to direct SendAddonMessage
+    SendAddonMessage(self.VARS.prefix,message,channel,sender)
+  end
 end
 
 function GuildRoll:addonComms(prefix,message,channel,sender)
@@ -1513,14 +1534,29 @@ end
 
 
 function GuildRoll:init_notes_v3(guild_index,name,officernote)
-  local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-  if  (ep ==nil or gp==nil) then
-    local initstring = string.format("{%d:%d}",0,GuildRoll.VARS.baseAE)
+  local ep = self:get_ep_v3(name,officernote)
+  if (ep == nil) then
+    -- Initialize with EP-only format {0}
+    local initstring = string.format("{%d}",0)
     local newnote = string.format("%s%s",officernote,initstring)
-    newnote = string.gsub(newnote,"(.*)({%d+:%d+})(.*)",sanitizeNote)
+    -- Try to sanitize with new EP-only format first
+    local hasNewFormat = string.find(newnote,"({%-?%d+})")
+    if hasNewFormat then
+      newnote = string.gsub(newnote,"(.*)({%-?%d+})(.*)",sanitizeNoteEP)
+    else
+      -- Fallback to legacy format sanitization if needed
+      newnote = string.gsub(newnote,"(.*)({%-?%d+:%-?%d+})(.*)",sanitizeNote)
+    end
     officernote = newnote
   else
-    officernote = string.gsub(officernote,"(.*)({%d+:%d+})(.*)",sanitizeNote)
+    -- Sanitize existing note (supports both {EP} and {EP:GP} formats)
+    local hasNewFormat = string.find(officernote,"({%-?%d+})")
+    if hasNewFormat then
+      officernote = string.gsub(officernote,"(.*)({%-?%d+})(.*)",sanitizeNoteEP)
+    else
+      -- Legacy format
+      officernote = string.gsub(officernote,"(.*)({%-?%d+:%-?%d+})(.*)",sanitizeNote)
+    end
   end
   GuildRosterSetOfficerNote(guild_index,officernote,true)
   return officernote
@@ -1531,29 +1567,27 @@ function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_act
   
   -- Get previous values for logging (after note initialization)
   local prevEP = self:get_ep_v3(name,officernote) or 0
-  local prevGP = self:get_gp_v3(name,officernote) or 0
   
   local newnote
-  if ( ep ~= nil) then 
-   -- ep = math.max(0,ep)
-    newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
-      return string.format("%s%s%s%s%s",head,ep,divider,oldgp,tail)
+  if (ep ~= nil) then 
+    -- Update EP in the note
+    -- Try new format {EP} first
+    local hasNewFormat = string.find(officernote,"({%-?%d+})")
+    if hasNewFormat then
+      -- New format {EP} - simple replacement
+      newnote = string.gsub(officernote,"(.*{)%-?%d+(}.*)",function(head,tail) 
+        return string.format("%s%d%s",head,ep,tail)
       end)
-  end
-  if (gp~= nil) then 
-   -- gp =  math.max(GuildRoll.VARS.baseAE,gp)
-    if (newnote) then
-     
-      newnote = string.gsub(newnote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
-        return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
-        end)
-    else 
-      newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail)
-      
-        return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
-        end)
+    else
+      -- Legacy format {EP:GP} - update EP part only
+      newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
+        return string.format("%s%s%s%s%s",head,ep,divider,oldgp,tail)
+      end)
     end
   end
+  
+  -- GP parameter is ignored (deprecated)
+  
   if (newnote) then 
     GuildRosterSetOfficerNote(guild_index,newnote,true)
     
@@ -1598,39 +1632,43 @@ end
 
 
 function GuildRoll:update_gp_v3(getname,gp)
-  for i = 1, GetNumGuildMembers(1) do
-    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    if (name==getname) then 
-      self:update_epgp_v3(nil,gp,i,name,officernote) 
-    end
-  end  
+  -- Deprecated: GP is no longer used
+  -- Kept for backward compatibility but does nothing
+  return
 end
 
 
 function GuildRoll:get_ep_v3(getname,officernote) -- gets ep by name or note
   if (officernote) then
-    local _,_,ep = string.find(officernote,".*{(%d+):%-?%d+}.*")
-    return tonumber(ep)
+    -- Try new format {EP} first
+    local _,_,ep = string.find(officernote,".*{(%-?%d+)}.*")
+    if ep then
+      return tonumber(ep)
+    end
+    -- Fallback to legacy format {EP:GP}
+    local _,_,ep_legacy = string.find(officernote,".*{(%-?%d+):%-?%d+}.*")
+    return tonumber(ep_legacy)
   end
   for i = 1, GetNumGuildMembers(1) do
     local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    local _,_,ep = string.find(officernote,".*{(%d+):%-?%d+}.*")
-    if (name==getname) then return tonumber(ep) end
+    -- Try new format {EP} first
+    local _,_,ep = string.find(officernote,".*{(%-?%d+)}.*")
+    if name==getname then 
+      if ep then
+        return tonumber(ep)
+      end
+      -- Fallback to legacy format {EP:GP}
+      local _,_,ep_legacy = string.find(officernote,".*{(%-?%d+):%-?%d+}.*")
+      return tonumber(ep_legacy)
+    end
   end
   return
 end
 
-function GuildRoll:get_gp_v3(getname,officernote) -- gets gp by name or officernote
-  if (officernote) then
-    local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
-    return tonumber(gp)
-  end
-  for i = 1, GetNumGuildMembers(1) do
-    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
-    if (name==getname) then return tonumber(gp) end
-  end
-  return
+function GuildRoll:get_gp_v3(getname,officernote) -- deprecated: returns nil for compatibility
+  -- GP is deprecated; return nil
+  -- Kept for backward compatibility but no longer used
+  return nil
 end
 
 function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
@@ -1944,15 +1982,14 @@ end
 
 
 
-function GuildRoll:decay_epgp_v3()
+function GuildRoll:decay_ep_v3()
   if not (admin()) then return end
   for i = 1, GetNumGuildMembers(1) do
     local name,_,_,_,class,_,note,officernote,_,_ = GetGuildRosterInfo(i)
-    local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-    if (ep~=nil and gp~=nil) then
+    local ep = self:get_ep_v3(name,officernote)
+    if (ep~=nil) then
       ep = self:num_round(ep*GuildRoll_decay)
-      gp = self:num_round(gp*GuildRoll_decay)
-      self:update_epgp_v3(ep,gp,i,name,officernote,"DECAY")
+      self:update_epgp_v3(ep,nil,i,name,officernote,"DECAY")
     end
   end
   local msg = string.format(L["DecayAnnounce"], (1 - (GuildRoll_decay or GuildRoll.VARS.decay)) * 100)
@@ -1964,29 +2001,24 @@ function GuildRoll:decay_epgp_v3()
   self:refreshPRTablets() 
 end
 
+-- Legacy function name for backward compatibility
+function GuildRoll:decay_epgp_v3()
+  self:decay_ep_v3()
+end
+
 
 function GuildRoll:gp_reset_v3()
-  if (IsGuildLeader()) then
-    for i = 1, GetNumGuildMembers(1) do
-      local name,_,_,_,class,_,note,officernote,_,_ = GetGuildRosterInfo(i)
-      local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-      if (ep and gp) then
-        self:update_epgp_v3(0,GuildRoll.VARS.baseAE,i,name,officernote)
-      end
-    end
-    local msg = L["All Standing has been reset to 0/%d."]
-    self:debugPrint(string.format(msg,GuildRoll.VARS.baseAE))
-    self:adminSay(string.format(msg,GuildRoll.VARS.baseAE))
-    self:addToLog(string.format(msg,GuildRoll.VARS.baseAE))
-  end
+  -- Deprecated: GP is no longer used
+  -- This function now resets EP to 0 for compatibility
+  self:ep_reset_v3()
 end
 
 function GuildRoll:ep_reset_v3()
   if (IsGuildLeader()) then
     for i = 1, GetNumGuildMembers(1) do
       local name,_,_,_,class,_,note,officernote,_,_ = GetGuildRosterInfo(i)
-      local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-      if (ep and gp) then
+      local ep = self:get_ep_v3(name,officernote)
+      if (ep) then
         self:update_epgp_v3(0,nil,i,name,officernote)
       end
     end
@@ -2001,21 +2033,29 @@ end
 
 
 
-function GuildRoll:my_epgp_announce(use_main)
-  local ep,gp
+function GuildRoll:my_ep_announce(use_main)
+  local ep
   if (use_main) then
-    ep,gp = (self:get_ep_v3(GuildRoll_main) or 0), (self:get_gp_v3(GuildRoll_main) or GuildRoll.VARS.baseAE)
+    ep = (self:get_ep_v3(GuildRoll_main) or 0)
   else
-    ep,gp = (self:get_ep_v3(self._playerName) or 0), (self:get_gp_v3(self._playerName) or GuildRoll.VARS.baseAE)
+    ep = (self:get_ep_v3(self._playerName) or 0)
   end
-  local baseRoll = GuildRoll:GetBaseRollValue(ep,gp)
   local msg = string.format(L["You now have: %d MainStanding"], ep)
   self:defaultPrint(msg)
 end
 
-function GuildRoll:my_epgp(use_main)
+function GuildRoll:my_ep(use_main)
   GuildRoster()
-  self:ScheduleEvent("guildrollRosterRefresh",self.my_epgp_announce,3,self,use_main)
+  self:ScheduleEvent("guildrollRosterRefresh",self.my_ep_announce,3,self,use_main)
+end
+
+-- Legacy function names for backward compatibility
+function GuildRoll:my_epgp_announce(use_main)
+  self:my_ep_announce(use_main)
+end
+
+function GuildRoll:my_epgp(use_main)
+  self:my_ep(use_main)
 end
 
 ---------
@@ -2549,6 +2589,95 @@ function GuildRoll:MovePublicMainTagsToOfficerNotes()
   return movedCount
 end
 
+-- RemoveGPFromOfficerNotes: Admin function to migrate officer notes from {EP:GP} to {EP}
+-- Requires admin permission (GuildRoll:IsAdmin)
+-- Processes guild roster in batches to avoid server throttling
+-- Returns: nothing (uses batch processing with progress messages)
+function GuildRoll:RemoveGPFromOfficerNotes()
+  if not GuildRoll:IsAdmin() then
+    self:defaultPrint("You do not have permission to edit officer notes.")
+    return
+  end
+  
+  local numMembers = GetNumGuildMembers(1)
+  
+  -- Validate numMembers is a valid number
+  if not numMembers or type(numMembers) ~= "number" or numMembers < 1 then
+    self:defaultPrint("Unable to access guild roster. Please try again.")
+    return
+  end
+  
+  -- Constants for batch processing
+  local BATCH_SIZE = 5  -- Process 5 members at a time
+  local BATCH_DELAY = 0.5  -- Wait 0.5 seconds between batches
+  local currentIndex = 1
+  local totalProcessed = 0
+  local totalMigrated = 0
+  
+  -- Batch processor function
+  local function processBatch()
+    local batchEnd = math.min(currentIndex + BATCH_SIZE - 1, numMembers)
+    local batchMigrated = 0
+    
+    for i = currentIndex, batchEnd do
+      -- Wrap GetGuildRosterInfo in pcall for safety
+      local success, name, r2, r3, r4, r5, r6, publicNote, officerNote, r9, r10 = pcall(function()
+        return GetGuildRosterInfo(i)
+      end)
+      
+      -- Process only if GetGuildRosterInfo succeeded and returned valid data
+      if success and name and type(officerNote) == "string" and officerNote ~= "" then
+        -- Check if officer note contains {EP:GP} pattern
+        local hasLegacyPattern = string.find(officerNote, "{%-?%d+:%-?%d+}")
+        
+        if hasLegacyPattern then
+          -- Extract EP from {EP:GP} pattern
+          local prefix, ep, gp, postfix = string.match(officerNote, "^(.-)({)(%-?%d+):(%-?%d+)(}.*)$")
+          
+          if prefix and ep and postfix then
+            -- Build new note with {EP} format
+            local newOfficerNote = prefix .. "{" .. ep .. "}" .. string.sub(postfix, 2)
+            
+            -- Validate newOfficerNote is a string before writing
+            if type(newOfficerNote) == "string" then
+              -- Write officer note (wrapped in pcall for safety)
+              local writeSuccess = pcall(function()
+                GuildRosterSetOfficerNote(i, newOfficerNote, true)
+              end)
+              
+              if writeSuccess then
+                batchMigrated = batchMigrated + 1
+              end
+            end
+          end
+        end
+      end
+      
+      totalProcessed = totalProcessed + 1
+    end
+    
+    totalMigrated = totalMigrated + batchMigrated
+    
+    -- Progress message
+    if batchMigrated > 0 or (totalProcessed % 20 == 0) then
+      self:defaultPrint(string.format("Migration progress: %d/%d members processed, %d migrated so far...", totalProcessed, numMembers, totalMigrated))
+    end
+    
+    -- Schedule next batch or finish
+    currentIndex = batchEnd + 1
+    if currentIndex <= numMembers then
+      self:ScheduleEvent("GuildRoll_RemoveGP_Batch", processBatch, BATCH_DELAY)
+    else
+      -- Migration complete
+      self:defaultPrint(string.format("GP removal migration complete! Migrated %d officer notes from {EP:GP} to {EP} format.", totalMigrated))
+    end
+  end
+  
+  -- Start batch processing
+  self:defaultPrint(string.format("Starting GP removal migration for %d guild members...", numMembers))
+  processBatch()
+end
+
 
 ------------
 -- Logging
@@ -2813,6 +2942,15 @@ sanitizeNote = function(prefix,epgp,postfix)
   local clip = math.min(31-12,string.len(remainder))
   local prepend = string.sub(remainder,1,clip)
   return string.format("%s%s",prepend,epgp)
+end
+
+-- Sanitize for EP-only format {EP}
+local function sanitizeNoteEP(prefix,ep_tag,postfix)
+  -- reserve 8 chars for the EP pattern {xxxxx} max public/officernote = 31
+  local remainder = string.format("%s%s",prefix,postfix)
+  local clip = math.min(31-8,string.len(remainder))
+  local prepend = string.sub(remainder,1,clip)
+  return string.format("%s%s",prepend,ep_tag)
 end
 
 -------------
