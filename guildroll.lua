@@ -1195,11 +1195,13 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
     return
   end
   
-  local who,what,amount
-  for name,epgp,change in string.gfind(message,"([^;]+);([^;]+);([^;]+)") do
+  local who,what,amount,raidFlag
+  -- Parse 3-field or 4-field message format for backward compatibility
+  for name,epgp,change,flag in string.gfind(message,"([^;]+);([^;]+);([^;]+);?([^;]*)") do
     who=name
     what=epgp
     amount=tonumber(change)
+    raidFlag=flag
   end
   if (who) and (what) and (amount) then
     local msg
@@ -1217,18 +1219,29 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
           msg = string.format(L["You have been awarded %d MainStanding."],amount)
         end
         
-        -- Add personal log entry for EP changes only
+        -- Add personal log entry for EP changes with compact colorized format
         -- Note: Due to WoW's guild roster sync timing, get_ep_v3 usually returns the pre-change
         -- value, making prevEP accurate. In rare cases where roster has already synced, prevEP
         -- may reflect the post-change value, but this is unavoidable with the current API.
         local prevEP = self:get_ep_v3(who) or 0
         local newEP = prevEP + amount
-        local logMsg
-        if amount < 0 then
-          logMsg = string.format("%s %d EP penalty by %s (Prev: %d, New: %d)", who, math.abs(amount), sender, prevEP, newEP)
+        
+        -- Colorize delta: green for positive, red for negative
+        local deltaStr
+        if amount >= 0 then
+          deltaStr = C:Green(string.format("+%d", amount))
         else
-          logMsg = string.format("%s %+d EP by %s (Prev: %d, New: %d)", who, amount, sender, prevEP, newEP)
+          deltaStr = C:Red(string.format("%d", amount))
         end
+        
+        -- Build suffix based on raidFlag
+        local suffix = ""
+        if raidFlag and raidFlag == "RAID" then
+          suffix = " (Raid)"
+        end
+        
+        -- Compact format: EP: Prev -> New (±N) by AdminName[ (Raid)]
+        local logMsg = string.format("EP: %d -> %d (%s) by %s%s", prevEP, newEP, deltaStr, sender, suffix)
         self:personalLogAdd(who, logMsg)
       elseif what == "AuxStanding" then
         msg = string.format(L["You have gained %d AuxStanding."],amount)
@@ -1548,11 +1561,29 @@ function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_act
   if (newnote) then 
     GuildRosterSetOfficerNote(guild_index,newnote,true)
     
-    -- Add personal logging for EP changes only
+    -- Add personal logging for EP changes only with compact colorized format
     if ep ~= nil then
       local actor = UnitName("player")
       local changeEP = ep - prevEP
-      local logMsg = string.format("%s %+d EP by %s (Prev: %d, New: %d)", name, changeEP, actor, prevEP, ep)
+      
+      -- Colorize delta: green for positive, red for negative
+      local deltaStr
+      if changeEP >= 0 then
+        deltaStr = C:Green(string.format("+%d", changeEP))
+      else
+        deltaStr = C:Red(string.format("%d", changeEP))
+      end
+      
+      -- Build suffix based on special_action
+      local suffix = ""
+      if special_action == "RAID" then
+        suffix = " (Raid)"
+      elseif special_action == "DECAY" then
+        suffix = " (Decay)"
+      end
+      
+      -- Compact format: EP: Prev -> New (±N) by AdminName[ (Raid)|(Decay)]
+      local logMsg = string.format("EP: %d -> %d (%s) by %s%s", prevEP, ep, deltaStr, actor, suffix)
       self:personalLogAdd(name, logMsg)
     end
   end
@@ -1649,11 +1680,17 @@ function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
           local old = (self:get_ep_v3(actualName) or 0)
           local newep = actualEP + old
           
-          -- Update EP (this triggers update_epgp_v3 which handles personal logs)
-          self:update_ep_v3(actualName, newep)
+          -- Update EP with special_action="RAID" for local personal log
+          for j = 1, GetNumGuildMembers(1) do
+            local gname, _, _, _, gclass, _, gnote, gofficernote, _, _ = GetGuildRosterInfo(j)
+            if gname == actualName then
+              self:update_epgp_v3(newep, nil, j, gname, gofficernote, "RAID")
+              break
+            end
+          end
           
-          -- Send addon message to individual player
-          local addonMsg = string.format("%s;%s;%s", actualName, "MainStanding", actualEP)
+          -- Send addon message to individual player with RAID flag
+          local addonMsg = string.format("%s;%s;%s;RAID", actualName, "MainStanding", actualEP)
           self:addonMessage(addonMsg, "GUILD")
           
           -- Add player to raid_data for consolidated log entry
@@ -1871,14 +1908,24 @@ function GuildRoll:givename_ep(getname,ep,block) -- awards ep to a single charac
   -- Always announce, log, and send addon message for both positive and negative EP
   local msg
   local logMsg
-  -- AdminLog stores author separately (UnitName("player")), so don't include admin name in action text
+  local adminName = UnitName("player")
+  
+  -- Build compact AdminLog format: PlayerName - EP: Prev -> New (±N) by AdminName
+  local deltaStr
+  if ep >= 0 then
+    deltaStr = string.format("+%d", ep)
+  else
+    deltaStr = string.format("%d", ep)
+  end
+  logMsg = string.format("%s - EP: %d -> %d (%s) by %s", getname, old, newep, deltaStr, adminName)
+  
+  -- Build announcement message
   if ep < 0 then
     msg = string.format(L["%s MainStanding Penalty to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
-    logMsg = string.format("%d EP Penalty to %s%s (Prev: %d, New: %d)", ep, getname, postfix, old, newep)
   else
     msg = string.format(L["Giving %d MainStanding to %s%s. (Previous: %d, New: %d)"],ep,getname,postfix,old, newep)
-    logMsg = string.format("Giving %d EP to %s%s (Prev: %d, New: %d)", ep, getname, postfix, old, newep)
   end
+  
   self:adminSay(msg)
   self:addToLog(logMsg)
   local addonMsg = string.format("%s;%s;%s",getname,"MainStanding",ep)
@@ -1909,7 +1956,7 @@ function GuildRoll:decay_epgp_v3()
     if (ep~=nil and gp~=nil) then
       ep = self:num_round(ep*GuildRoll_decay)
       gp = self:num_round(gp*GuildRoll_decay)
-      self:update_epgp_v3(ep,gp,i,name,officernote)
+      self:update_epgp_v3(ep,gp,i,name,officernote,"DECAY")
     end
   end
   local msg = string.format(L["All Standing decayed by %s%%"],(1-GuildRoll_decay)*100)

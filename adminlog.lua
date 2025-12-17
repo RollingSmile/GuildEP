@@ -1083,6 +1083,26 @@ function GuildRoll_AdminLog:OnTooltipUpdate()
     "child_justify3", "LEFT"
   )
   
+  -- Helper function to colorize numeric deltas in action text
+  local function colorizeAction(actionText)
+    if not actionText then return "" end
+    
+    -- Replace signed numbers with colorized versions
+    -- Pattern matches: +123, -456, or just numbers in context
+    local result = actionText
+    
+    -- First, colorize explicit signed numbers (+N or -N)
+    result = string.gsub(result, "(%+%d+)", function(match)
+      return C:Green(match)
+    end)
+    
+    result = string.gsub(result, "(-%d+)", function(match)
+      return C:Red(match)
+    end)
+    
+    return result
+  end
+  
   -- Build filtered entry list
   local displayEntries = {}
   for i = 1, table.getn(GuildRoll_adminLogOrder) do
@@ -1133,10 +1153,13 @@ function GuildRoll_AdminLog:OnTooltipUpdate()
         local isExpanded = expandedRaidEntries[entry.id]
         local expandIcon = isExpanded and "[-] " or "[+] "
         
+        -- Colorize the action text for main raid entry
+        local colorizedAction = colorizeAction(entry.action or "")
+        
         cat:AddLine(
           "text", timeStr,
           "text2", entry.author or "Unknown",
-          "text3", expandIcon .. (entry.action or ""),
+          "text3", expandIcon .. colorizedAction,
           "func", function()
             -- Toggle expansion
             if expandedRaidEntries[entry.id] then
@@ -1148,31 +1171,47 @@ function GuildRoll_AdminLog:OnTooltipUpdate()
           end
         )
         
-        -- If expanded, show player details
+        -- If expanded, show player details in a sub-category to prevent overlap
         if isExpanded and entry.raid_details.players then
+          -- Create a sub-category for raid details to ensure proper rendering
+          local subCat = T:AddCategory(
+            "columns", 3,
+            "text", "",
+            "text2", "",
+            "text3", "Players",
+            "child_textR", 0.7,
+            "child_textG", 0.7,
+            "child_textB", 0.7,
+            "child_text2R", 0.7,
+            "child_text2G", 0.7,
+            "child_text2B", 0.7,
+            "child_text3R", 0.7,
+            "child_text3G", 0.7,
+            "child_text3B", 0.7,
+            "child_justify", "LEFT",
+            "child_justify2", "LEFT",
+            "child_justify3", "LEFT"
+          )
+          
           for j = 1, table.getn(entry.raid_details.players) do
             local player = entry.raid_details.players[j]
             local counts = entry.raid_details.counts[player] or {old=0, new=0}
             
-            cat:AddLine(
+            subCat:AddLine(
               "text", "",
               "text2", "",
-              "text3", string.format("%s — Prev: %d, New: %d", player, counts.old, counts.new),
-              "text2R", 0.7,
-              "text2G", 0.7,
-              "text2B", 0.7,
-              "text3R", 0.7,
-              "text3G", 0.7,
-              "text3B", 0.7
+              "text3", string.format("  %s — Prev: %d, New: %d", player, counts.old, counts.new)
             )
           end
         end
       else
-        -- Regular entry (non-raid)
+        -- Regular entry (non-raid): colorize action text
+        local colorizedAction = colorizeAction(entry.action or "")
+        
         cat:AddLine(
           "text", timeStr,
           "text2", entry.author or "Unknown",
-          "text3", entry.action or ""
+          "text3", colorizedAction
         )
       end
     end
