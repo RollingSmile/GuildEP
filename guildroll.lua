@@ -2632,11 +2632,11 @@ function GuildRoll:RemoveGPFromOfficerNotes()
         
         if hasLegacyPattern then
           -- Extract EP from {EP:GP} pattern
-          local prefix, ep, gp, postfix = string.match(officerNote, "^(.-)({)(%-?%d+):(%-?%d+)(}.*)$")
+          local prefix, ep, postfix = string.match(officerNote, "^(.-){(%-?%d+):%-?%d+}(.*)$")
           
-          if prefix and ep and postfix then
+          if prefix and ep then
             -- Build new note with {EP} format
-            local newOfficerNote = prefix .. "{" .. ep .. "}" .. string.sub(postfix, 2)
+            local newOfficerNote = prefix .. "{" .. ep .. "}" .. (postfix or "")
             
             -- Validate newOfficerNote is a string before writing
             if type(newOfficerNote) == "string" then
