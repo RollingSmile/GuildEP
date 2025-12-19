@@ -1545,8 +1545,8 @@ function GuildRoll:init_notes_v3(guild_index,name,officernote)
     local hasGP = self:get_gp_v3(name,officernote)
     if hasGP then
       -- Migrate from {EP:GP} to {EP}
-      local prefix, postfix = string.match(officernote, "^(.-)({%d+:%-?%d+})(.*)$")
-      if prefix then
+      local prefix, epgp_tag, postfix = string.match(officernote, "^(.-)({%d+:%-?%d+})(.*)$")
+      if epgp_tag then
         local newTag = string.format("{%d}", ep)
         newnote = prefix .. newTag .. (postfix or "")
         if string.len(newnote) > MAX_NOTE_LEN then
@@ -1580,15 +1580,15 @@ function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_act
   if (ep ~= nil) then 
     -- Update EP in {EP} format (ignore GP parameter, deprecated)
     -- First try to match {EP:GP} format and replace with {EP}
-    local prefix, oldep, postfix = string.match(officernote, "^(.-)({)(%-?%d+):%-?%d+(}.*)$")
-    if prefix then
+    local prefix, epgp_tag, postfix = string.match(officernote, "^(.-)({%-?%d+:%-?%d+})(.*)$")
+    if epgp_tag then
       -- Found {EP:GP}, replace with {EP}
       newnote = string.format("%s{%d}%s", prefix, ep, postfix)
     else
       -- Try {EP} format
-      prefix, oldep, postfix = string.match(officernote, "^(.-)({)(%-?%d+)(}.*)$")
-      if prefix then
-        newnote = string.format("%s{%d}%s", prefix, ep, postfix)
+      local prefix2, ep_tag, postfix2 = string.match(officernote, "^(.-)({%-?%d+})(.*)$")
+      if ep_tag then
+        newnote = string.format("%s{%d}%s", prefix2, ep, postfix2)
       end
     end
   end
@@ -1722,30 +1722,34 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
     stats.scanned = stats.scanned + 1
     
     if officernote and name then
-      -- Check if note contains {EP:GP} pattern
-      local prefix, ep, gp, postfix = string.match(officernote, "^(.-)({)(%d+):(%d+)(}.*)$")
+      -- Check if note contains {EP:GP} pattern (support negative GP)
+      local prefix, ep, gp, postfix = string.match(officernote, "^(.-)({%d+:%-?%d+})(.*)$")
       
-      if ep and gp then
-        -- Found {EP:GP} pattern, add to migration queue
-        table.insert(migrationQueue, {
-          index = i,
-          name = name,
-          officernote = officernote,
-          ep = tonumber(ep),
-          gp = tonumber(gp),
-          prefix = prefix or "",
-          postfix = postfix or ""
-        })
+      if prefix and ep then
+        -- Extract EP and GP values from the matched tag
+        local ep_val, gp_val = string.match(ep, "{(%d+):(%-?%d+)}")
+        if ep_val and gp_val then
+          -- Found {EP:GP} pattern, add to migration queue
+          table.insert(migrationQueue, {
+            index = i,
+            name = name,
+            officernote = officernote,
+            ep = tonumber(ep_val),
+            gp = tonumber(gp_val),
+            prefix = prefix or "",
+            postfix = postfix or ""
+          })
+        end
       end
     end
   end
   
-  if table.getn(migrationQueue) == 0 then
+  if #migrationQueue == 0 then
     self:defaultPrint("No officer notes with {EP:GP} format found. Migration not needed.")
     return
   end
   
-  self:defaultPrint(string.format("Starting migration of %d officer notes from {EP:GP} to {EP}...", table.getn(migrationQueue)))
+  self:defaultPrint(string.format("Starting migration of %d officer notes from {EP:GP} to {EP}...", #migrationQueue))
   
   -- Process migration queue with throttling
   local currentIndex = 1
@@ -1759,7 +1763,7 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
     end
     lastUpdate = now
     
-    if currentIndex > table.getn(migrationQueue) then
+    if currentIndex > #migrationQueue then
       -- Migration complete
       migrationFrame:SetScript("OnUpdate", nil)
       self:defaultPrint(string.format("Migration complete! Migrated: %d, Failed: %d, Scanned: %d", 
@@ -1769,6 +1773,22 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
     
     local item = migrationQueue[currentIndex]
     currentIndex = currentIndex + 1
+    
+    -- Re-lookup member by name to get current roster index
+    local currentGuildIndex = nil
+    for j = 1, GetNumGuildMembers(1) do
+      local gname, _, _, _, _, _, _, gofficernote, _, _ = GetGuildRosterInfo(j)
+      if gname == item.name then
+        currentGuildIndex = j
+        break
+      end
+    end
+    
+    if not currentGuildIndex then
+      stats.failed = stats.failed + 1
+      self:debugPrint(string.format("Failed to migrate %s: member not found in roster", item.name))
+      return
+    end
     
     -- Build new note with {EP} format
     local newNote = string.format("%s{%d}%s", item.prefix, item.ep, item.postfix)
@@ -1803,9 +1823,9 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
       newNote = newNote
     })
     
-    -- Apply the migration
+    -- Apply the migration using current roster index
     local success, err = pcall(function()
-      GuildRosterSetOfficerNote(item.index, newNote, true)
+      GuildRosterSetOfficerNote(currentGuildIndex, newNote, true)
     end)
     
     if success then
