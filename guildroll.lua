@@ -174,6 +174,15 @@ local admincmd, membercmd = {type = "group", handler = GuildRoll, args = {
         GuildRoll:ResetButton()  
       end,
       order = 2,
+    },
+    nogp = {
+      type = "execute",
+      name = "Migrate to EP-only",
+      desc = "Migrate all officer notes from {EP:GP} to {EP} format (admin only)",
+      func = function()
+        StaticPopup_Show("GUILDROLL_MIGRATE_EP_ONLY")
+      end,
+      order = 3,
     },      
     restart = {
       type = "execute",
@@ -1513,14 +1522,48 @@ end
 
 
 function GuildRoll:init_notes_v3(guild_index,name,officernote)
-  local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-  if  (ep ==nil or gp==nil) then
-    local initstring = string.format("{%d:%d}",0,GuildRoll.VARS.baseAE)
-    local newnote = string.format("%s%s",officernote,initstring)
-    newnote = string.gsub(newnote,"(.*)({%d+:%d+})(.*)",sanitizeNote)
+  local ep = self:get_ep_v3(name,officernote)
+  if (ep == nil) then
+    -- Initialize with {EP} format (EP-only, no GP)
+    local initstring = string.format("{%d}",0)
+    local newnote = string.format("%s%s",officernote or "",initstring)
+    -- Sanitize to fit in 31 chars, preserving {EP} tag
+    if string.len(newnote) > MAX_NOTE_LEN then
+      local epTag = string.format("{%d}", 0)
+      local epTagLen = string.len(epTag)
+      local availableLen = MAX_NOTE_LEN - epTagLen
+      if availableLen > 0 then
+        local trimmedPrefix = string.sub(officernote or "", 1, availableLen)
+        newnote = trimmedPrefix .. epTag
+      else
+        newnote = epTag
+      end
+    end
     officernote = newnote
   else
-    officernote = string.gsub(officernote,"(.*)({%d+:%d+})(.*)",sanitizeNote)
+    -- If EP exists but note might be in old {EP:GP} format, migrate to {EP}
+    local hasGP = self:get_gp_v3(name,officernote)
+    if hasGP then
+      -- Migrate from {EP:GP} to {EP}
+      local prefix, postfix = string.match(officernote, "^(.-)({%d+:%-?%d+})(.*)$")
+      if prefix then
+        local newTag = string.format("{%d}", ep)
+        newnote = prefix .. newTag .. (postfix or "")
+        if string.len(newnote) > MAX_NOTE_LEN then
+          local epTagLen = string.len(newTag)
+          local availableLen = MAX_NOTE_LEN - epTagLen
+          if availableLen > 0 then
+            local halfLen = math.floor(availableLen / 2)
+            local trimmedPrefix = string.sub(prefix, 1, halfLen)
+            local trimmedPostfix = string.sub(postfix or "", 1, availableLen - halfLen)
+            newnote = trimmedPrefix .. newTag .. trimmedPostfix
+          else
+            newnote = newTag
+          end
+        end
+        officernote = newnote
+      end
+    end
   end
   GuildRosterSetOfficerNote(guild_index,officernote,true)
   return officernote
@@ -1534,26 +1577,25 @@ function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_act
   local prevGP = self:get_gp_v3(name,officernote) or 0
   
   local newnote
-  if ( ep ~= nil) then 
-   -- ep = math.max(0,ep)
-    newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
-      return string.format("%s%s%s%s%s",head,ep,divider,oldgp,tail)
-      end)
-  end
-  if (gp~= nil) then 
-   -- gp =  math.max(GuildRoll.VARS.baseAE,gp)
-    if (newnote) then
-     
-      newnote = string.gsub(newnote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail) 
-        return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
-        end)
-    else 
-      newnote = string.gsub(officernote,"(.*{)(%-?%d+)(:)(%-?%d+)(}.*)",function(head,oldep,divider,oldgp,tail)
-      
-        return string.format("%s%s%s%s%s",head,oldep,divider,gp,tail)
-        end)
+  if (ep ~= nil) then 
+    -- Update EP in {EP} format (ignore GP parameter, deprecated)
+    -- First try to match {EP:GP} format and replace with {EP}
+    local prefix, oldep, postfix = string.match(officernote, "^(.-)({)(%-?%d+):%-?%d+(}.*)$")
+    if prefix then
+      -- Found {EP:GP}, replace with {EP}
+      newnote = string.format("%s{%d}%s", prefix, ep, postfix)
+    else
+      -- Try {EP} format
+      prefix, oldep, postfix = string.match(officernote, "^(.-)({)(%-?%d+)(}.*)$")
+      if prefix then
+        newnote = string.format("%s{%d}%s", prefix, ep, postfix)
+      end
     end
   end
+  
+  -- GP updates are now ignored - EP-only format
+  -- The gp parameter is kept for backward compatibility but not written
+  
   if (newnote) then 
     GuildRosterSetOfficerNote(guild_index,newnote,true)
     
@@ -1609,28 +1651,170 @@ end
 
 function GuildRoll:get_ep_v3(getname,officernote) -- gets ep by name or note
   if (officernote) then
+    -- Try {EP:GP} format first
     local _,_,ep = string.find(officernote,".*{(%d+):%-?%d+}.*")
-    return tonumber(ep)
+    if ep then
+      return tonumber(ep)
+    end
+    -- Try {EP} format (EP-only)
+    local _,_,ep_only = string.find(officernote,".*{(%d+)}.*")
+    return tonumber(ep_only)
   end
   for i = 1, GetNumGuildMembers(1) do
     local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
+    -- Try {EP:GP} format first
     local _,_,ep = string.find(officernote,".*{(%d+):%-?%d+}.*")
-    if (name==getname) then return tonumber(ep) end
+    if ep then
+      if (name==getname) then return tonumber(ep) end
+    else
+      -- Try {EP} format (EP-only)
+      local _,_,ep_only = string.find(officernote,".*{(%d+)}.*")
+      if (name==getname) then return tonumber(ep_only) end
+    end
   end
   return
 end
 
 function GuildRoll:get_gp_v3(getname,officernote) -- gets gp by name or officernote
   if (officernote) then
+    -- Only return GP if {EP:GP} format exists (not {EP} only)
     local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
     return tonumber(gp)
   end
   for i = 1, GetNumGuildMembers(1) do
     local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
+    -- Only return GP if {EP:GP} format exists (not {EP} only)
     local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
     if (name==getname) then return tonumber(gp) end
   end
   return
+end
+
+-- Migrate {EP:GP} to {EP} format and backup GP values
+-- Admin-only command: /grollnogp
+function GuildRoll:migrateToEPOnly(throttleDelay)
+  -- Verify admin permissions
+  if not self:IsAdmin() then
+    self:defaultPrint("You must be a guild officer or leader to run this command.")
+    return
+  end
+  
+  -- Initialize backup table if needed
+  if not GuildRoll_oldGP then
+    GuildRoll_oldGP = {}
+  end
+  
+  -- Use default throttle if not specified
+  throttleDelay = throttleDelay or 0.25
+  
+  -- Track migration progress
+  local migrationQueue = {}
+  local stats = {
+    scanned = 0,
+    migrated = 0,
+    failed = 0,
+    skipped = 0
+  }
+  
+  -- Scan roster and build migration queue
+  for i = 1, GetNumGuildMembers(1) do
+    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
+    stats.scanned = stats.scanned + 1
+    
+    if officernote and name then
+      -- Check if note contains {EP:GP} pattern
+      local prefix, ep, gp, postfix = string.match(officernote, "^(.-)({)(%d+):(%d+)(}.*)$")
+      
+      if ep and gp then
+        -- Found {EP:GP} pattern, add to migration queue
+        table.insert(migrationQueue, {
+          index = i,
+          name = name,
+          officernote = officernote,
+          ep = tonumber(ep),
+          gp = tonumber(gp),
+          prefix = prefix or "",
+          postfix = postfix or ""
+        })
+      end
+    end
+  end
+  
+  if table.getn(migrationQueue) == 0 then
+    self:defaultPrint("No officer notes with {EP:GP} format found. Migration not needed.")
+    return
+  end
+  
+  self:defaultPrint(string.format("Starting migration of %d officer notes from {EP:GP} to {EP}...", table.getn(migrationQueue)))
+  
+  -- Process migration queue with throttling
+  local currentIndex = 1
+  local migrationFrame = CreateFrame("Frame")
+  local lastUpdate = 0
+  
+  migrationFrame:SetScript("OnUpdate", function()
+    local now = GetTime()
+    if now - lastUpdate < throttleDelay then
+      return
+    end
+    lastUpdate = now
+    
+    if currentIndex > table.getn(migrationQueue) then
+      -- Migration complete
+      migrationFrame:SetScript("OnUpdate", nil)
+      self:defaultPrint(string.format("Migration complete! Migrated: %d, Failed: %d, Scanned: %d", 
+        stats.migrated, stats.failed, stats.scanned))
+      return
+    end
+    
+    local item = migrationQueue[currentIndex]
+    currentIndex = currentIndex + 1
+    
+    -- Build new note with {EP} format
+    local newNote = string.format("%s{%d}%s", item.prefix, item.ep, item.postfix)
+    
+    -- Trim to 31 characters if needed
+    if string.len(newNote) > MAX_NOTE_LEN then
+      -- Try to trim the prefix/postfix while keeping {EP}
+      local epTag = string.format("{%d}", item.ep)
+      local epTagLen = string.len(epTag)
+      local availableLen = MAX_NOTE_LEN - epTagLen
+      
+      if availableLen > 0 then
+        -- Split available space between prefix and postfix
+        local prefixLen = math.floor(availableLen / 2)
+        local postfixLen = availableLen - prefixLen
+        local trimmedPrefix = string.sub(item.prefix, 1, prefixLen)
+        local trimmedPostfix = string.sub(item.postfix, 1, postfixLen)
+        newNote = trimmedPrefix .. epTag .. trimmedPostfix
+      else
+        newNote = epTag
+      end
+    end
+    
+    -- Backup GP value before migration
+    if not GuildRoll_oldGP[item.name] then
+      GuildRoll_oldGP[item.name] = {}
+    end
+    table.insert(GuildRoll_oldGP[item.name], {
+      gp = item.gp,
+      timestamp = time(),
+      oldNote = item.officernote,
+      newNote = newNote
+    })
+    
+    -- Apply the migration
+    local success, err = pcall(function()
+      GuildRosterSetOfficerNote(item.index, newNote, true)
+    end)
+    
+    if success then
+      stats.migrated = stats.migrated + 1
+    else
+      stats.failed = stats.failed + 1
+      self:debugPrint(string.format("Failed to migrate %s: %s", item.name, tostring(err)))
+    end
+  end)
 end
 
 function GuildRoll:award_raid_ep(ep) -- awards ep to raid members in zone
@@ -2916,6 +3100,20 @@ StaticPopupDialogs["CONFIRM_RESET_FINAL"] = {
   button2 = TEXT(CANCEL),
   OnAccept = function()
     GuildRoll:ep_reset_v3()
+  end,
+  timeout = 0,
+  whileDead = 1,
+  exclusive = 1,
+  showAlert = 1,
+  hideOnEscape = 1
+}
+
+StaticPopupDialogs["GUILDROLL_MIGRATE_EP_ONLY"] = {
+  text = "|cffff9900This will migrate all officer notes from {EP:GP} to {EP} format.\n\nGP values will be backed up to GuildRoll_oldGP.\n\nContinue?|r",
+  button1 = TEXT(OKAY),
+  button2 = TEXT(CANCEL),
+  OnAccept = function()
+    GuildRoll:migrateToEPOnly()
   end,
   timeout = 0,
   whileDead = 1,
