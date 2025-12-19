@@ -1723,23 +1723,20 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
     
     if officernote and name then
       -- Check if note contains {EP:GP} pattern (support negative GP)
-      local prefix, ep, gp, postfix = string.match(officernote, "^(.-)({%d+:%-?%d+})(.*)$")
+      -- Pattern: prefix + {EP:GP} + postfix
+      local prefix, ep_val, gp_val, postfix = string.match(officernote, "^(.-){(%d+):(%-?%d+)}(.*)$")
       
-      if prefix and ep then
-        -- Extract EP and GP values from the matched tag
-        local ep_val, gp_val = string.match(ep, "{(%d+):(%-?%d+)}")
-        if ep_val and gp_val then
-          -- Found {EP:GP} pattern, add to migration queue
-          table.insert(migrationQueue, {
-            index = i,
-            name = name,
-            officernote = officernote,
-            ep = tonumber(ep_val),
-            gp = tonumber(gp_val),
-            prefix = prefix or "",
-            postfix = postfix or ""
-          })
-        end
+      if ep_val and gp_val then
+        -- Found {EP:GP} pattern, add to migration queue
+        table.insert(migrationQueue, {
+          index = i,
+          name = name,
+          officernote = officernote,
+          ep = tonumber(ep_val),
+          gp = tonumber(gp_val),
+          prefix = prefix or "",
+          postfix = postfix or ""
+        })
       end
     end
   end
