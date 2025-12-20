@@ -711,9 +711,9 @@ function GuildRoll_BuffCheck:CheckBuffs()
   
   -- Dynamic buff requirement calculation based on raid composition
   local providers = {}
-  for class, _ in pairs(BUFF_REQUIREMENTS) do
-    if IsClassInRaid(class) then
-      providers[class] = true
+  for providerClass, _ in pairs(BUFF_REQUIREMENTS) do
+    if IsClassInRaid(providerClass) then
+      providers[providerClass] = true
     end
   end
   
