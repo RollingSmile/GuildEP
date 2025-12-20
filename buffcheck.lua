@@ -39,20 +39,7 @@ local FLASK_MIN_REQUIRED = 1
 -- Configuration: Number of distinct priest buff types required
 local PRIEST_BUFF_TYPES_REQUIRED = 3
 
--- Spell ID tables for buffs by provider class (Turtle WoW 1.12)
--- WARRIOR intentionally removed - Battle Shout is not checked
-local BUFF_IDS = {
-  -- Power Word: Fortitude (10933, 27681), Divine Spirit (14782, 27683), Shadow Protection (27685, 27687)
-  PRIEST = {10933, 27681, 14782, 27683, 27685, 27687},
-  -- Arcane Intellect (1459), Arcane Brilliance (23028)
-  MAGE   = {1459, 23028},
-  -- Mark of the Wild (8907), Gift of the Wild (21850)
-  DRUID  = {8907, 21850},
-  -- Blessings: Might (10442, 25780), Wisdom (10308, 25895), Kings (25782, 25899), Light (19978, 25916), Salvation (1038, 25898)
-  PALADIN= {10442, 25780, 10308, 25895, 25782, 25899, 19978, 25916, 1038, 25898},
-}
-
--- Legacy name-based buff requirements (kept for reference only)
+-- Buff requirements by provider class (name-based matching)
 local BUFF_REQUIREMENTS = {
   PRIEST = {
     "Power Word: Fortitude",
@@ -82,60 +69,7 @@ local BUFF_REQUIREMENTS = {
   },
 }
 
--- Spell ID tables for consumables by class (Turtle WoW 1.12)
--- Mongoose=17528, Giants=17551, Firewater=18125, Juju Power=17539, Juju Might=17540, Dumplings=24045, Sunfruit=10706, Stoneshield=17565
--- Greater Agility=9188, Greater Firepower=17562, Shadow Power=17560, Arcane Elixir=17556, Greater Arcane=17557, Frost Power=17563, Cerebral=9030, Runn Tum=18141
--- NOTE: These IDs are kept for reference and as optional fallback. The primary consumable
--- matching strategy now uses CONSUMABLE_BUFF_KEYWORDS and legacy CONSUMABLES names with
--- substring matching, making the addon robust on servers with custom or localized buff names.
-local CONSUMABLE_IDS = {
-  WARRIOR = {17528, 17551, 18125, 17539, 17540, 24045, 10706, 17565},
-  ROGUE   = {17528, 9188, 18125, 17539, 17540, 10706, 24045},
-  HUNTER  = {17528, 9188, 18125, 17539, 10706, 24045},
-  MAGE    = {17562, 17560, 17556, 17557, 17563, 9030, 18141},
-  WARLOCK = {17562, 17560, 17556, 17557, 9030, 18141},
-  PRIEST  = {17562, 17560, 17556, 17557, 9030, 18141},
-  DRUID   = {17562, 17560, 17556, 17557, 9030, 18141, 17528, 9188},
-  PALADIN = {17551, 17528, 17562, 17560, 17556, 17557, 9030, 18141},
-  -- SHAMAN intentionally omitted
-}
-
--- Keyword fallback for consumables (for servers with custom buff names)
--- These keywords are used as patterns for substring matching (case-insensitive)
--- This is now the PRIMARY matching strategy for consumables, making the addon
--- robust on private servers where GetSpellInfo/GetSpellName may not resolve all IDs
-local CONSUMABLE_BUFF_KEYWORDS = {
-  "Mongoose", "Giants",      -- Elixir of the Mongoose, Elixir of Giants
-  "Firewater",               -- Winterfall Firewater
-  "Juju",                    -- Juju Power, Juju Might
-  "Stoneshield",             -- Greater Stoneshield Potion
-  "Sunfruit", "Dumplings",   -- Blessed Sunfruit Juice, Smoked Desert Dumplings
-  "Agility",                 -- Elixir of Greater Agility
-  "Firepower", "Shadow Power", -- Elixir of Greater Firepower, Elixir of Shadow Power
-  "Arcane Elixir",           -- Arcane Elixir, Greater Arcane Elixir
-  "Frost Power",             -- Elixir of Frost Power
-  "Cerebral", "Runn Tum",    -- Cerebral Cortex Compound, Runn Tum Tuber Surprise
-  "Scorpok",
-  -- New keywords / server-specific items
-  "Spirit of Zanza", "Swiftness of Zanza",
-  "Danonzo", "Tel'Abim", "Tel Abim",
-  "Gurubashi", "Gumbo", "Le Fishe", "Fishe", "Grilled Squid", "Sour Mountain",
-  "R.O.I.D.S.", "ROIDS", "ROIDS.", "ROIDS",
-  "Elemental Sharpening Stone", "Sharpening Stone",
-  "Mighty Rage", "Mighty Rage Potion",
-  "Hardened Mushroom", "Major Troll's Blood", "Troll's Blood",
-  "Rumsey", "Black Label", "Rumsey Rum",
-  "Flask of Titans", "Flask of Distilled Wisdom", "Flask of",
-  "Cerebral Cortex", "Mageblood", "Greater Arcane", "Arcane Elixir",
-  "Dreamshard", "Brilliant Wizard", "Brilliant Mana",
-  "Major Mana", "Major Mana Potion",
-  "Nightfin", "Fizzy Energy", "Fizzy",
-  "Herbal Tea", "Kreeg", "Kreeg's Stout", "Merlot",
-  "Mongoose", "Swiftness", "Spirit",
-}
-
--- Legacy name-based consumables (kept for reference only)
--- These are also used as additional pattern sources for substring matching
+-- Consumable requirements by class (name-based matching)
 local CONSUMABLES = {
   WARRIOR = {
     "Spirit of Zanza",
@@ -315,24 +249,7 @@ local CONSUMABLES = {
   },
 }
 
--- Spell ID tables for flasks (Turtle WoW 1.12)
--- Flask of Distilled Wisdom (13506), Flask of Supreme Power (13508), Flask of the Titans (13507)
--- NOTE: These IDs are kept for reference and as optional fallback. The primary flask
--- matching strategy now uses FLASK_KEYWORDS and legacy FLASKS names with
--- substring matching, making the addon robust on servers with custom or localized buff names.
-local FLASK_IDS = {13506, 13508, 13507}
-
--- Keyword fallback for flasks (for servers with custom buff names)
--- These keywords are used as patterns for substring matching (case-insensitive)
--- This is now the PRIMARY matching strategy for flasks, making the addon
--- robust on private servers where GetSpellInfo/GetSpellName may not resolve all IDs
-local FLASK_KEYWORDS = {
-  "Flask of",  -- Matches standard flasks: Flask of Distilled Wisdom, Flask of Supreme Power, Flask of the Titans
-}
-
--- Legacy name-based flasks (kept for reference only)
--- These are also used as additional pattern sources for substring matching
--- Common flasks (min = 1)
+-- Flask requirements (name-based matching)
 local FLASKS = {
   "Flask of Distilled Wisdom",
   "Flask of Supreme Power",
