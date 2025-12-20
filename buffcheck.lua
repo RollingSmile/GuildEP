@@ -711,9 +711,9 @@ function GuildRoll_BuffCheck:CheckBuffs()
   
   -- Dynamic buff requirement calculation based on raid composition
   local providers = {}
-  for class, _ in pairs(BUFF_IDS) do
-    if IsClassInRaid(class) then
-      providers[class] = true
+  for providerClass, _ in pairs(BUFF_REQUIREMENTS) do
+    if IsClassInRaid(providerClass) then
+      providers[providerClass] = true
     end
   end
   
@@ -999,53 +999,12 @@ function GuildRoll_BuffCheck:DumpBuffs(unit)
 end
 
 -- Runtime helper: Add spell IDs to the configured lists
--- Note: With the new pattern-based matching for consumables, this function
--- can be used to add spell IDs that will be resolved and added as additional
--- patterns. For consumables, the primary matching is now keyword-based.
--- Future enhancement: Could also accept pattern strings directly.
+-- NOTE: This function is no longer supported after simplifying resolveIDLists()
+-- to use only text/name-based matching. Spell ID-based matching has been removed.
 function GuildRoll_BuffCheck:AddSpellIDs(kind, idlist)
-  if not kind or not idlist then
-    GuildRoll:defaultPrint("Usage: GuildRoll_BuffCheck:AddSpellIDs(\"BUFF:PRIEST\", {12345, 67890})")
-    GuildRoll:defaultPrint("       GuildRoll_BuffCheck:AddSpellIDs(\"CONSUME:WARRIOR\", {12345})")
-    GuildRoll:defaultPrint("       GuildRoll_BuffCheck:AddSpellIDs(\"FLASK\", {12345})")
-    return
-  end
-  
-  if kind == "FLASK" then
-    -- Add to FLASK_IDS
-    for _, id in ipairs(idlist) do
-      table.insert(FLASK_IDS, id)
-    end
-    GuildRoll:defaultPrint("Added " .. table.getn(idlist) .. " spell IDs to FLASK_IDS")
-  elseif string.find(kind, "BUFF:") then
-    -- Extract class name
-    local className = string.sub(kind, 6)
-    if not BUFF_IDS[className] then
-      BUFF_IDS[className] = {}
-    end
-    for _, id in ipairs(idlist) do
-      table.insert(BUFF_IDS[className], id)
-    end
-    GuildRoll:defaultPrint("Added " .. table.getn(idlist) .. " spell IDs to BUFF_IDS." .. className)
-  elseif string.find(kind, "CONSUME:") then
-    -- Extract class name
-    local className = string.sub(kind, 9)
-    if not CONSUMABLE_IDS[className] then
-      CONSUMABLE_IDS[className] = {}
-    end
-    for _, id in ipairs(idlist) do
-      table.insert(CONSUMABLE_IDS[className], id)
-    end
-    GuildRoll:defaultPrint("Added " .. table.getn(idlist) .. " spell IDs to CONSUMABLE_IDS." .. className)
-  else
-    GuildRoll:defaultPrint("Unknown kind: " .. kind)
-    return
-  end
-  
-  -- Invalidate cache and re-resolve (will rebuild patterns for consumables)
-  localizedNamesResolved = false
-  resolveIDLists()
-  GuildRoll:defaultPrint("Spell ID lists updated and localized names refreshed.")
+  GuildRoll:defaultPrint("AddSpellIDs is no longer supported.")
+  GuildRoll:defaultPrint("The addon now uses only text/name-based matching from BUFF_REQUIREMENTS, CONSUMABLES, and FLASKS tables.")
+  GuildRoll:defaultPrint("Please modify those tables directly in buffcheck.lua if you need to add custom buffs.")
 end
 
 -- Slash command handler for /dumpbuffs
