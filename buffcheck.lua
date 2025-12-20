@@ -36,6 +36,9 @@ local CONSUMABLE_MIN_REQUIRED = 4
 -- Configuration: Minimum required flasks per player
 local FLASK_MIN_REQUIRED = 1
 
+-- Configuration: Number of distinct priest buff types required
+local PRIEST_BUFF_TYPES_REQUIRED = 3
+
 -- Spell ID tables for buffs by provider class (Turtle WoW 1.12)
 -- WARRIOR intentionally removed - Battle Shout is not checked
 local BUFF_IDS = {
@@ -688,7 +691,7 @@ local function CountPriestBuffTypes(unit)
       if isPriestBuff then
         -- Extract buff type (Fortitude, Spirit, Shadow Protection)
         for buffType, _ in pairs(priestBuffCategories) do
-          if string.find(string.lower(buffName), string.lower(buffType)) then
+          if string.find(string.lower(buffName), string.lower(buffType), 1, true) then
             buffTypes[buffType] = true
             break
           end
@@ -775,7 +778,7 @@ function GuildRoll_BuffCheck:CheckBuffs()
     if providerClass == "PALADIN" then
       -- Paladins handled separately
     elseif providerClass == "PRIEST" then
-      totalRequired = totalRequired + 3 -- Priest has 3 buff types: Fortitude, Spirit, Shadow Protection
+      totalRequired = totalRequired + PRIEST_BUFF_TYPES_REQUIRED
     else
       totalRequired = totalRequired + 1
     end
@@ -796,9 +799,8 @@ function GuildRoll_BuffCheck:CheckBuffs()
     -- Check priest buffs (requires all 3 buff types)
     if providers["PRIEST"] then
       local priestBuffCount = CountPriestBuffTypes(unit)
-      local requiredPriestBuffs = 3
-      if priestBuffCount < requiredPriestBuffs then
-        local missingPriestBuffs = requiredPriestBuffs - priestBuffCount
+      if priestBuffCount < PRIEST_BUFF_TYPES_REQUIRED then
+        local missingPriestBuffs = PRIEST_BUFF_TYPES_REQUIRED - priestBuffCount
         table.insert(missingBuffs, string.format("Priest(%d)", missingPriestBuffs))
         missingCount = missingCount + missingPriestBuffs
       end
