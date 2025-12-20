@@ -464,9 +464,9 @@ for _, option in ipairs(adminOptions) do
 end
 
 -- Toggle roll buttons on Roll button click
--- OnClick receives the mouse button as the second parameter (button)
-rollButton:SetScript("OnClick", function(self, button)
-    if button == "RightButton" then
+-- In WoW 1.12, OnClick uses global arg1 for the button type ("LeftButton" or "RightButton")
+rollButton:SetScript("OnClick", function()
+    if arg1 == "RightButton" then
         -- Right-click: hide both frames first, then show admin menu if admin, otherwise show normal menu
         rollOptionsFrame:Hide()
         adminOptionsFrame:Hide()
@@ -483,7 +483,7 @@ rollButton:SetScript("OnClick", function(self, button)
         else
             rollOptionsFrame:Show()
         end
-    elseif button == "LeftButton" then
+    elseif arg1 == "LeftButton" then
         -- Left-click: toggle normal menu, hide admin menu
         adminOptionsFrame:Hide()
         if rollOptionsFrame:IsShown() then
