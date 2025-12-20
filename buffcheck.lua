@@ -645,7 +645,7 @@ local function CountPaladinBlessings(unit)
       if isBlessing then
         -- Extract blessing type (Might, Wisdom, etc.)
         for bType, _ in pairs(blessingTypes) do
-          if string.find(buffName, bType) then
+          if string.find(string.lower(buffName), string.lower(bType), 1, true) then
             blessings[bType] = true
             break
           end
