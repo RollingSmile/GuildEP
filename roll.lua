@@ -295,6 +295,8 @@ rollButton:SetText("Roll")
 rollButton:SetPoint("CENTER", rollFrame, "CENTER")
 rollButton:EnableMouse(true)
 rollButton:SetFrameLevel((rollFrame:GetFrameLevel() or 0) + 5)
+-- Register for both left and right clicks
+rollButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
 -- Make the button participate in dragging so you can drag by holding the button itself
 -- Drag will start when the mouse moves past the system drag threshold (standard behavior)
@@ -462,8 +464,8 @@ for _, option in ipairs(adminOptions) do
 end
 
 -- Toggle roll buttons on Roll button click
--- Use OnMouseUp to detect which button was clicked
-rollButton:SetScript("OnMouseUp", function(self, button)
+-- OnClick receives the mouse button as arg1 parameter
+rollButton:SetScript("OnClick", function(self, button)
     if button == "RightButton" then
         -- Right-click: hide both frames first, then show admin menu if admin, otherwise show normal menu
         rollOptionsFrame:Hide()
