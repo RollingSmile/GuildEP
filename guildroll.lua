@@ -1741,10 +1741,15 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
     end
   end
   
-  if #migrationQueue == 0 then
-    self:defaultPrint("No officer notes with {EP:GP} format found. Migration not needed.")
-    return
-  end
+  local function tlen(t)
+  if type(t) ~= "table" then return 0 end
+  return table.getn(t)
+end
+
+if tlen(migrationQueue) == 0 then
+  self:defaultPrint("No officer notes with {EP:GP} format found. Migration not needed.")
+  return
+end
   
   self:defaultPrint(string.format("Starting migration of %d officer notes from {EP:GP} to {EP}...", #migrationQueue))
   
