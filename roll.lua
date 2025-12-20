@@ -230,6 +230,31 @@ local function ExecuteCommand(command)
     end
 end
 
+-- Function to execute admin commands
+local function ExecuteAdminCommand(command)
+    if command == "toggle_standings" then
+        if GuildRoll_standings and GuildRoll_standings.Toggle then
+            pcall(function() GuildRoll_standings:Toggle() end)
+        end
+    elseif command == "buff_check" then
+        if GuildRoll_BuffCheck and GuildRoll_BuffCheck.CheckBuffs then
+            pcall(function() GuildRoll_BuffCheck:CheckBuffs() end)
+        end
+    elseif command == "consumes_check" then
+        if GuildRoll_BuffCheck and GuildRoll_BuffCheck.CheckConsumes then
+            pcall(function() GuildRoll_BuffCheck:CheckConsumes() end)
+        end
+    elseif command == "flasks_check" then
+        if GuildRoll_BuffCheck and GuildRoll_BuffCheck.CheckFlasks then
+            pcall(function() GuildRoll_BuffCheck:CheckFlasks() end)
+        end
+    elseif command == "give_ep_raid" then
+        if GuildRoll and GuildRoll.PromptAwardRaidEP then
+            pcall(function() GuildRoll:PromptAwardRaidEP() end)
+        end
+    end
+end
+
 -- Create a frame for the Roll button
 local rollFrame = CreateFrame("Frame", "GuildEpRollFrame", UIParent)
 -- Make the frame snug around the button: button 96x30 with small padding (insets = 3)
@@ -270,6 +295,8 @@ rollButton:SetText("Roll")
 rollButton:SetPoint("CENTER", rollFrame, "CENTER")
 rollButton:EnableMouse(true)
 rollButton:SetFrameLevel((rollFrame:GetFrameLevel() or 0) + 5)
+-- Register for both left and right clicks
+rollButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 
 -- Make the button participate in dragging so you can drag by holding the button itself
 -- Drag will start when the mouse moves past the system drag threshold (standard behavior)
@@ -296,8 +323,16 @@ rollOptionsFrame:SetHeight(140)
 rollOptionsFrame:Hide()
 rollOptionsFrame:SetFrameLevel(rollButton:GetFrameLevel() - 1)
 
+-- Container for admin menu buttons, initially hidden
+local adminOptionsFrame = CreateFrame("Frame", "AdminOptionsFrame", rollFrame)
+adminOptionsFrame:SetPoint("TOP", rollButton, "BOTTOM", 0, -2)
+adminOptionsFrame:SetWidth(140)
+adminOptionsFrame:SetHeight(140)
+adminOptionsFrame:Hide()
+adminOptionsFrame:SetFrameLevel(rollButton:GetFrameLevel() - 1)
+
 -- Function to create roll option buttons
-local function CreateRollButton(name, parent, command, anchor, width, font)
+local function CreateRollButton(name, parent, command, anchor, width, font, isAdminCommand)
     local buttonFrame = CreateFrame("Frame", nil, parent)
     buttonFrame:SetWidth(120)
     buttonFrame:SetHeight(24)
@@ -319,8 +354,13 @@ local function CreateRollButton(name, parent, command, anchor, width, font)
         pcall(function() button:GetFontString():SetFont("Fonts\\FRIZQT__.TTF", 10) end)
     end
     button:SetScript("OnClick", function()
-        ExecuteCommand(command)
-        rollOptionsFrame:Hide()
+        if isAdminCommand then
+            ExecuteAdminCommand(command)
+            adminOptionsFrame:Hide()
+        else
+            ExecuteCommand(command)
+            rollOptionsFrame:Hide()
+        end
     end)
 
     return buttonFrame
@@ -382,13 +422,24 @@ local function BuildRollOptions()
     return opts
 end
 
+-- Function to build admin menu options
+local function BuildAdminOptions()
+    local opts = {}
+    table.insert(opts, { "Standings", "toggle_standings" })
+    table.insert(opts, { "Buff Check", "buff_check" })
+    table.insert(opts, { "Consumes Check", "consumes_check" })
+    table.insert(opts, { "Flasks Check", "flasks_check" })
+    table.insert(opts, { "Give EP to Raid", "give_ep_raid" })
+    return opts
+end
+
 -- Build initial options list
 local options = BuildRollOptions()
 
 -- Create roll buttons dynamically with closer spacing
 local previousButton = rollOptionsFrame
 for _, option in ipairs(options) do
-    local buttonFrame = CreateRollButton(option[1], rollOptionsFrame, option[2], previousButton, option[3] or 110, option[4] or false)
+    local buttonFrame = CreateRollButton(option[1], rollOptionsFrame, option[2], previousButton, option[3] or 110, option[4] or false, false)
 
     if previousButton == rollOptionsFrame then
         buttonFrame:SetPoint("TOP", rollOptionsFrame, "TOP", 0, 0)
@@ -398,12 +449,48 @@ for _, option in ipairs(options) do
     previousButton = buttonFrame
 end
 
--- Toggle roll buttons on Roll button click
-rollButton:SetScript("OnClick", function()
-    if rollOptionsFrame:IsShown() then
-        rollOptionsFrame:Hide()
+-- Create admin option buttons dynamically
+local adminOptions = BuildAdminOptions()
+local previousAdminButton = adminOptionsFrame
+for _, option in ipairs(adminOptions) do
+    local buttonFrame = CreateRollButton(option[1], adminOptionsFrame, option[2], previousAdminButton, 110, false, true)
+    
+    if previousAdminButton == adminOptionsFrame then
+        buttonFrame:SetPoint("TOP", adminOptionsFrame, "TOP", 0, 0)
     else
-        rollOptionsFrame:Show()
+        buttonFrame:SetPoint("TOP", previousAdminButton, "BOTTOM", 0, 5)
+    end
+    previousAdminButton = buttonFrame
+end
+
+-- Toggle roll buttons on Roll button click
+-- In WoW 1.12, OnClick uses global arg1 for the button type ("LeftButton" or "RightButton")
+rollButton:SetScript("OnClick", function()
+    if arg1 == "RightButton" then
+        -- Right-click: hide both frames first, then show admin menu if admin, otherwise show normal menu
+        rollOptionsFrame:Hide()
+        adminOptionsFrame:Hide()
+        
+        -- Check if player is admin with defensive programming
+        local isAdmin = false
+        if GuildRoll and GuildRoll.IsAdmin then
+            local ok, result = pcall(function() return GuildRoll:IsAdmin() end)
+            isAdmin = ok and result
+        end
+        
+        if isAdmin then
+            adminOptionsFrame:Show()
+        else
+            rollOptionsFrame:Show()
+        end
+    elseif arg1 == "LeftButton" then
+        -- Left-click: toggle normal menu, hide admin menu
+        adminOptionsFrame:Hide()
+        if rollOptionsFrame:IsShown() then
+            rollOptionsFrame:Hide()
+        else
+            rollOptionsFrame:Show()
+        end
     end
 end)
 
@@ -431,7 +518,7 @@ function GuildRoll:RebuildRollOptions()
     -- Recreate buttons
     local previousButton = rollOptionsFrame
     for _, opt in ipairs(newOptions) do
-        local buttonFrame = CreateRollButton(opt[1], rollOptionsFrame, opt[2], previousButton, opt[3] or 110, opt[4] or false)
+        local buttonFrame = CreateRollButton(opt[1], rollOptionsFrame, opt[2], previousButton, opt[3] or 110, opt[4] or false, false)
         if previousButton == rollOptionsFrame then
             buttonFrame:SetPoint("TOP", rollOptionsFrame, "TOP", 0, 0)
         else
