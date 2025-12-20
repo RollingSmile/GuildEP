@@ -1741,41 +1741,95 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
     end
   end
   
-  local function tlen(t)
-  if type(t) ~= "table" then return 0 end
-  return table.getn(t)
-end
+ -- Migrate {EP:GP} to {EP} format and backup GP values
+-- Admin-only command: /grollnogp
+function GuildRoll:migrateToEPOnly(throttleDelay)
+  -- Verify admin permissions
+  if not self:IsAdmin() then
+    self:defaultPrint("You must be a guild officer or leader to run this command.")
+    return
+  end
 
-if tlen(migrationQueue) == 0 then
-  self:defaultPrint("No officer notes with {EP:GP} format found. Migration not needed.")
-  return
-end
-  
-  self:defaultPrint(string.format("Starting migration of %d officer notes from {EP:GP} to {EP}...", #migrationQueue))
-  
+  -- Initialize backup table if needed
+  if not GuildRoll_oldGP then
+    GuildRoll_oldGP = {}
+  end
+
+  -- Use default throttle if not specified
+  throttleDelay = throttleDelay or 0.25
+
+  -- Track migration progress
+  local migrationQueue = {}
+  local stats = {
+    scanned = 0,
+    migrated = 0,
+    failed = 0,
+    skipped = 0
+  }
+
+  -- Scan roster and build migration queue
+  for i = 1, GetNumGuildMembers(1) do
+    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
+    stats.scanned = stats.scanned + 1
+
+    if officernote and name then
+      -- Check if note contains {EP:GP} pattern (support negative GP)
+      -- Pattern: prefix + {EP:GP} + postfix
+      local prefix, ep_val, gp_val, postfix = string.match(officernote, "^(.-){(%d+):(%-?%d+)}(.*)$")
+
+      if ep_val and gp_val then
+        -- Found {EP:GP} pattern, add to migration queue
+        table.insert(migrationQueue, {
+          index = i,
+          name = name,
+          officernote = officernote,
+          ep = tonumber(ep_val),
+          gp = tonumber(gp_val),
+          prefix = prefix or "",
+          postfix = postfix or ""
+        })
+      end
+    end
+  end
+
+  -- helper length function compatible with Lua 5.0
+  local function tlen(t)
+    if type(t) ~= "table" then return 0 end
+    return table.getn(t)
+  end
+
+  if tlen(migrationQueue) == 0 then
+    self:defaultPrint("No officer notes with {EP:GP} format found. Migration not needed.")
+    return
+  end
+
+  local total = tlen(migrationQueue)
+  self:defaultPrint(string.format("Starting migration of %d officer notes from {EP:GP} to {EP}...", total))
+
   -- Process migration queue with throttling
   local currentIndex = 1
   local migrationFrame = CreateFrame("Frame")
   local lastUpdate = 0
-  
+
   migrationFrame:SetScript("OnUpdate", function()
     local now = GetTime()
     if now - lastUpdate < throttleDelay then
       return
     end
     lastUpdate = now
-    
-    if currentIndex > #migrationQueue then
+
+    -- Use tlen instead of '#' for compatibility
+    if currentIndex > tlen(migrationQueue) then
       -- Migration complete
       migrationFrame:SetScript("OnUpdate", nil)
-      self:defaultPrint(string.format("Migration complete! Migrated: %d, Failed: %d, Scanned: %d", 
+      self:defaultPrint(string.format("Migration complete! Migrated: %d, Failed: %d, Scanned: %d",
         stats.migrated, stats.failed, stats.scanned))
       return
     end
-    
+
     local item = migrationQueue[currentIndex]
     currentIndex = currentIndex + 1
-    
+
     -- Re-lookup member by name to get current roster index
     local currentGuildIndex = nil
     for j = 1, GetNumGuildMembers(1) do
@@ -1785,23 +1839,23 @@ end
         break
       end
     end
-    
+
     if not currentGuildIndex then
       stats.failed = stats.failed + 1
       self:debugPrint(string.format("Failed to migrate %s: member not found in roster", item.name))
       return
     end
-    
+
     -- Build new note with {EP} format
     local newNote = string.format("%s{%d}%s", item.prefix, item.ep, item.postfix)
-    
+
     -- Trim to 31 characters if needed
     if string.len(newNote) > MAX_NOTE_LEN then
       -- Try to trim the prefix/postfix while keeping {EP}
       local epTag = string.format("{%d}", item.ep)
       local epTagLen = string.len(epTag)
       local availableLen = MAX_NOTE_LEN - epTagLen
-      
+
       if availableLen > 0 then
         -- Split available space between prefix and postfix
         local prefixLen = math.floor(availableLen / 2)
@@ -1813,7 +1867,7 @@ end
         newNote = epTag
       end
     end
-    
+
     -- Backup GP value before migration
     if not GuildRoll_oldGP[item.name] then
       GuildRoll_oldGP[item.name] = {}
@@ -1824,12 +1878,12 @@ end
       oldNote = item.officernote,
       newNote = newNote
     })
-    
+
     -- Apply the migration using current roster index
     local success, err = pcall(function()
       GuildRosterSetOfficerNote(currentGuildIndex, newNote, true)
     end)
-    
+
     if success then
       stats.migrated = stats.migrated + 1
     else
