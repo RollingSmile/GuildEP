@@ -69,14 +69,16 @@ local BUFF_REQUIREMENTS = {
   },
 }
 
--- Consumable requirements by class (name-based matching)
-local CONSUMABLES = {
-  WARRIOR = {
+-- Role-based consumable requirements (name-based matching)
+-- Consumables are organized by role rather than class to reduce duplication
+local ROLE_CONSUMABLES = {
+  TANK = {
     "Spirit of Zanza",
     "Swiftness of Zanza",
+    "Danonzo's Tel'Abim Medley",
     "Elixir of the Mongoose",
     "Juju Might",
-    "Ground Scorpok Assay",
+    "Juju Power",
     "Elixir of Giants",
     "Elixir of Fortitude",
     "Elixir of Superior Defense",
@@ -87,166 +89,71 @@ local CONSUMABLES = {
     "Sour Mountain Berry",
     "Flask of Titans",
     "Major Troll's Blood Potion",
-    "Juju Power",
     "Hardened Mushroom",
     "Winterfall Firewater",
     "Rumsey Rum Black Label",
     "R.O.I.D.S.",
     "Elemental Sharpening Stone",
     "Mighty Rage Potion",
-    "Danonzo's Tel'Abim Medley",
   },
-  DRUID = {
+  PHYSICAL = {
     "Spirit of Zanza",
     "Swiftness of Zanza",
+    "Danonzo's Tel'Abim Medley",
     "Elixir of the Mongoose",
     "Juju Might",
     "Ground Scorpok Assay",
-    "Elixir of Giants",
-    "Elixir of Fortitude",
-    "Elixir of Superior Defense",
-    "Greater Stoneshield Potion",
-    "Gurubashi Gumbo",
+    "Strike of the Scorpok",
     "Le Fishe Au Chocolat",
     "Grilled Squid",
     "Sour Mountain Berry",
-    "Flask of Titans",
-    "Major Troll's Blood Potion",
-    "Juju Power",
-    "Hardened Mushroom",
-    "Winterfall Firewater",
-    "Rumsey Rum Black Label",
-    "R.O.I.D.S.",
     "Elemental Sharpening Stone",
+    "R.O.I.D.S.",
     "Mighty Rage Potion",
+  },
+  CASTER = {
+    "Spirit of Zanza",
+    "Swiftness of Zanza",
     "Danonzo's Tel'Abim Medley",
     "Cerebral Cortex Compound",
     "Mageblood Potion",
     "Greater Arcane Elixir",
+    "Arcane Elixir",
     "Dreamshard Elixir",
     "Brilliant Wizard Oil",
-    "Major Mana Potion",
-    "Danonzo's Tel'Abim Delight",
     "Brilliant Mana Oil",
+    "Major Mana Potion",
     "Nightfin Soup",
     "Fizzy Energy Drink",
-    "Flask of Distilled Wisdom",
     "Herbal Tea",
     "Kreeg's Stout Beatdown",
     "Merlot Blue",
+    "Danonzo's Tel'Abim Delight",
   },
-  PALADIN = {
+  HEALER = {
     "Spirit of Zanza",
     "Swiftness of Zanza",
-    "Elixir of the Mongoose",
-    "Juju Might",
-    "Strike of the Scorpok",
-    "Elixir of Giants",
-    "Elixir of Fortitude",
-    "Elixir of Superior Defense",
-    "Greater Stoneshield Potion",
-    "Gurubashi Gumbo",
-    "Le Fishe Au Chocolat",
-    "Grilled Squid",
-    "Sour Mountain Berry",
-    "Flask of Titans",
-    "Major Troll's Blood Potion",
-    "Juju Power",
-    "Hardened Mushroom",
-    "Winterfall Firewater",
-    "Rumsey Rum Black Label",
-    "R.O.I.D.S.",
-    "Elemental Sharpening Stone",
-    "Mighty Rage Potion",
     "Danonzo's Tel'Abim Medley",
     "Cerebral Cortex Compound",
     "Mageblood Potion",
-    "Greater Arcane Elixir",
-    "Dreamshard Elixir",
-    "Brilliant Wizard Oil",
     "Major Mana Potion",
-    "Danonzo's Tel'Abim Delight",
-    "Brilliant Mana Oil",
-    "Nightfin Soup",
-    "Fizzy Energy Drink",
     "Flask of Distilled Wisdom",
     "Herbal Tea",
-    "Kreeg's Stout Beatdown",
-    "Merlot Blue",
-  },
-  PRIEST = {
-    "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Cerebral Cortex Compound",
-    "Mageblood Potion",
-    "Greater Arcane Elixir",
-    "Dreamshard Elixir",
-    "Brilliant Wizard Oil",
-    "Major Mana Potion",
-    "Danonzo's Tel'Abim Delight",
-    "Danonzo's Tel'Abim Medley",
-    "Brilliant Mana Oil",
     "Nightfin Soup",
-    "Fizzy Energy Drink",
-    "Major Troll's Blood Potion",
-    "Flask of Distilled Wisdom",
-    "Herbal Tea",
-    "Kreeg's Stout Beatdown",
-    "Merlot Blue",
-  },
-  MAGE = {
-    "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Cerebral Cortex Compound",
-    "Mageblood Potion",
-    "Greater Arcane Elixir",
-    "Dreamshard Elixir",
-    "Brilliant Wizard Oil",
-    "Major Mana Potion",
-    "Danonzo's Tel'Abim Delight",
-    "Danonzo's Tel'Abim Medley",
-  },
-  WARLOCK = {
-    "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Cerebral Cortex Compound",
-    "Mageblood Potion",
-    "Greater Arcane Elixir",
-    "Dreamshard Elixir",
-    "Brilliant Wizard Oil",
-    "Major Mana Potion",
-    "Danonzo's Tel'Abim Delight",
-    "Danonzo's Tel'Abim Medley",
-  },
-  ROGUE = {
-    "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Elixir of the Mongoose",
-    "Juju Might",
-    "Strike of the Scorpok",
-    "Elixir of Giants",
-    "R.O.I.D.S.",
-    "Elemental Sharpening Stone",
-    "Mighty Rage Potion",
-    "Danonzo's Tel'Abim Medley",
-    "Le Fishe Au Chocolat",
-    "Grilled Squid",
-    "Sour Mountain Berry",
-  },
-  HUNTER = {
-    "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Elixir of the Mongoose",
-    "Juju Might",
-    "Ground Scorpok Assay",
-    "Danonzo's Tel'Abim Surprise",
-    "Danonzo's Tel'Abim Medley",
-    "Le Fishe Au Chocolat",
-    "Grilled Squid",
-    "Sour Mountain Berry",
-    "Strike of the Scorpok",
-    "Mana Regeneration"
-  },
+  }
+}
+
+-- Class to role mapping (upper-case class tokens)
+-- Each class can have multiple roles
+local CLASS_ROLES = {
+  DRUID = { "TANK", "PHYSICAL", "CASTER", "HEALER" },
+  PALADIN = { "TANK", "PHYSICAL", "HEALER" },
+  WARRIOR = { "TANK", "PHYSICAL" },
+  HUNTER = { "PHYSICAL" },
+  ROGUE = { "PHYSICAL" },
+  MAGE = { "CASTER" },
+  PRIEST = { "CASTER", "HEALER" },
+  WARLOCK = { "CASTER" },
 }
 
 -- Flask requirements (name-based matching)
@@ -348,11 +255,16 @@ local function resolveIDLists()
     end
   end
 
-  -- Populate consumables from legacy CONSUMABLES only (exact-name matching)
-  for className, consumeList in pairs(CONSUMABLES) do
+  -- Populate consumables from role-based ROLE_CONSUMABLES (exact-name matching)
+  -- Build a merged set of consumables for each class based on their roles
+  for className, roles in pairs(CLASS_ROLES) do
     localizedConsumables[className] = localizedConsumables[className] or {}
-    for _, consumeName in ipairs(consumeList) do
-      localizedConsumables[className][consumeName] = true
+    for _, role in ipairs(roles) do
+      if ROLE_CONSUMABLES[role] then
+        for _, consumeName in ipairs(ROLE_CONSUMABLES[role]) do
+          localizedConsumables[className][consumeName] = true
+        end
+      end
     end
   end
 
