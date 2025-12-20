@@ -233,8 +233,9 @@ end
 -- Function to execute admin commands
 local function ExecuteAdminCommand(command)
     if command == "toggle_standings" then
-        -- Reuse existing "show ep" logic from ExecuteCommand
-        ExecuteCommand("show ep")
+        if GuildRoll_standings and GuildRoll_standings.Toggle then
+            pcall(function() GuildRoll_standings:Toggle() end)
+        end
     elseif command == "buff_check" then
         if GuildRoll_BuffCheck and GuildRoll_BuffCheck.CheckBuffs then
             pcall(function() GuildRoll_BuffCheck:CheckBuffs() end)
