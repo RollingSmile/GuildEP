@@ -1150,53 +1150,54 @@ function GuildRoll_AdminLog:OnTooltipUpdate()
       
       -- Check if this is a raid entry
       if entry.raid_details then
-        local isExpanded = expandedRaidEntries[entry.id]
-        local expandIcon = isExpanded and "[-] " or "[+] "
-        
         -- Colorize the action text for main raid entry
         local colorizedAction = colorizeAction(entry.action or "")
-        
+
         cat:AddLine(
           "text", timeStr,
           "text2", entry.author or "Unknown",
-          "text3", expandIcon .. colorizedAction,
-          "func", function()
-            -- Toggle expansion
-            if expandedRaidEntries[entry.id] then
-              expandedRaidEntries[entry.id] = nil
+          "text3", colorizedAction,
+          "hasChild", true,
+          "children", function()
+            -- Create a subcategory for the raid players (Tablet will render it as the child block)
+            local sub = T:AddCategory(
+              "columns", 3,
+              "text", "Time",
+              "text2", "Author",
+              "text3", "Action",
+              "child_justify3", "LEFT"
+            )
+
+            -- Add one line per player with counts and delta colorized
+            local rd = entry.raid_details
+            if rd and rd.players then
+              for j = 1, table.getn(rd.players) do
+                local player = rd.players[j]
+                local counts = rd.counts[player] or {old=0, new=0}
+                local delta = counts.new - counts.old
+
+                local deltaText
+                if delta >= 0 then
+                  deltaText = C:Green(string.format("(+%d)", delta))
+                else
+                  deltaText = C:Red(string.format("(%d)", delta))
+                end
+
+                sub:AddLine(
+                  "text", "",
+                  "text2", "",
+                  "text3", string.format("  %s — Prev: %d, New: %d %s", player, counts.old, counts.new, deltaText)
+                )
+              end
             else
-              expandedRaidEntries[entry.id] = true
+              sub:AddLine("text", "", "text2", "", "text3", "(no players)")
             end
-            pcall(function() T:Refresh("GuildRoll_AdminLog") end)
           end
         )
-        
-        -- If expanded, show player details inline (same category) to prevent overlap
-        if isExpanded and entry.raid_details.players then
-          for j = 1, table.getn(entry.raid_details.players) do
-            local player = entry.raid_details.players[j]
-            local counts = entry.raid_details.counts[player] or {old=0, new=0}
-            local delta = counts.new - counts.old
-            
-            -- Colorize delta: green for positive/zero, red for negative
-            local deltaColored
-            if delta >= 0 then
-              deltaColored = C:Green(string.format("(+%d)", delta))
-            else
-              deltaColored = C:Red(string.format("(%d)", delta))
-            end
-            
-            cat:AddLine(
-              "text", "",
-              "text2", "",
-              "text3", string.format("  %s — Prev: %d, New: %d %s", player, counts.old, counts.new, deltaColored)
-            )
-          end
-        end
       else
         -- Regular entry (non-raid): colorize action text
         local colorizedAction = colorizeAction(entry.action or "")
-        
+
         cat:AddLine(
           "text", timeStr,
           "text2", entry.author or "Unknown",
