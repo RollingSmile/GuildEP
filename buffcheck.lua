@@ -75,6 +75,7 @@ local BUFF_REQUIREMENTS = {
     "Blessing of Kings",
     "Blessing of Light",
     "Blessing of Salvation",
+    "Blessing of Sanctuary",
   },
 }
 
@@ -620,6 +621,7 @@ local function CountPaladinBlessings(unit)
     ["Kings"] = true,
     ["Light"] = true,
     ["Salvation"] = true,
+    ["Sanctuary"] = true,
   }
   
   for i = 1, 32 do
@@ -719,7 +721,7 @@ function GuildRoll_BuffCheck:CheckBuffs()
   
   -- Calculate required buffs dynamically
   local numPaladins = CountClassInRaid("PALADIN")
-  local requiredBlessings = math.min(numPaladins, 5) -- Up to 5 blessing types
+  local requiredBlessings = math.min(numPaladins, 6) -- Up to 6 blessing types
   
   -- Calculate total required buffs for each player
   local totalRequired = 0
