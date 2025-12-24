@@ -1242,12 +1242,6 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
     
     if (who == self._playerName) or (for_main) then
       if what == "MainStanding" then
-        if amount < 0 then
-          msg = string.format(L["You have received a %d MainStanding penalty."],amount)
-        else
-          msg = string.format(L["You have been awarded %d MainStanding."],amount)
-        end
-        
         -- Add personal log entry for EP changes with compact colorized format
         -- Note: Due to WoW's guild roster sync timing, get_ep_v3 usually returns the pre-change
         -- value, making prevEP accurate. In rare cases where roster has already synced, prevEP
@@ -1272,6 +1266,13 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
         -- Compact format: EP: Prev -> New (±N) by AdminName[ (Raid)]
         local logMsg = string.format("EP: %d -> %d (%s) by %s%s", prevEP, newEP, deltaStr, sender, suffix)
         self:personalLogAdd(who, logMsg)
+        
+        -- User-facing message with admin name, old/new EP, and raid tag
+        if amount < 0 then
+          msg = string.format("EP penalty: %d -> %d (%d) by %s%s", prevEP, newEP, amount, sender, suffix)
+        else
+          msg = string.format("EP awarded: %d -> %d (+%d) by %s%s", prevEP, newEP, amount, sender, suffix)
+        end
       elseif what == "AuxStanding" then
         msg = string.format(L["You have gained %d AuxStanding."],amount)
       end
@@ -1379,7 +1380,6 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
     end
     if msg and msg~="" then
       self:defaultPrint(msg)
-      self:my_epgp(for_main)
     end
   end
 end
