@@ -74,49 +74,49 @@ local BUFF_REQUIREMENTS = {
 local ROLE_CONSUMABLES = {
   TANK = {
     "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Danonzo's Tel'Abim Medley",
     "Elixir of the Mongoose",
+    "Greater Armor", --Elixir of Superior Defense
+    "Regeneration", --Major Troll's Blood Potion
+    "Dreamshard Elixir",
+    "Increased Stamina", -- Hardened Mushroom
     "Juju Might",
     "Juju Power",
+    "Winterfall Firewater";
+    "Rumsey Rum Black Label",
+    "Medivh's Merlot", --Stamina Merlot
     "Elixir of Giants",
-    "Elixir of Fortitude",
-    "Elixir of Superior Defense",
+    "Elixir of Fortitude",    
     "Greater Stoneshield Potion",
     "Gurubashi Gumbo",
     "Le Fishe Au Chocolat",
     "Grilled Squid",
     "Sour Mountain Berry",
     "Flask of Titans",
-    "Major Troll's Blood Potion",
-    "Hardened Mushroom",
-    "Winterfall Firewater",
-    "Rumsey Rum Black Label",
-    "R.O.I.D.S.",
+    "Rage of Ages", --R.O.I.D.S.
     "Elemental Sharpening Stone",
-    "Mighty Rage Potion",
+    "Strike of the Scorpok",
+    "Well Fed";
   },
   PHYSICAL = {
     "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Danonzo's Tel'Abim Medley",
     "Elixir of the Mongoose",
+    "Juju Power",
+    "Winterfall Firewater",
     "Juju Might",
-    "Ground Scorpok Assay",
+    "Rage of Ages",
     "Strike of the Scorpok",
     "Le Fishe Au Chocolat",
     "Grilled Squid",
-    "Sour Mountain Berry",
     "Elemental Sharpening Stone",
-    "R.O.I.D.S.",
-    "Mighty Rage Potion",
+    "Mana Regeneration", --Mageblood Potion
+    "Well Fed";
+    "Increased Agility", --Sour Mountain Berry
   },
   CASTER = {
     "Spirit of Zanza",
-    "Swiftness of Zanza",
-    "Danonzo's Tel'Abim Medley",
+    "Medivh's Merlot Blue Label",
     "Cerebral Cortex Compound",
-    "Mageblood Potion",
+    "Mana Regeneration", --Mageblood Potion
     "Greater Arcane Elixir",
     "Arcane Elixir",
     "Dreamshard Elixir",
@@ -129,10 +129,11 @@ local ROLE_CONSUMABLES = {
     "Kreeg's Stout Beatdown",
     "Merlot Blue",
     "Danonzo's Tel'Abim Delight",
+    "Well Fed";
   },
   HEALER = {
     "Spirit of Zanza",
-    "Swiftness of Zanza",
+    "Medivh's Merlot Blue Label",
     "Danonzo's Tel'Abim Medley",
     "Cerebral Cortex Compound",
     "Mageblood Potion",
