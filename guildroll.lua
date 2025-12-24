@@ -861,24 +861,19 @@ function GuildRoll:OnInitialize() -- ADDON_LOADED (1) unless LoD
   if GuildRoll_saychannel == nil then GuildRoll_saychannel = "GUILD" end
   if GuildRoll_decay == nil then GuildRoll_decay = GuildRoll.VARS.decay end
   if GuildRoll_minPE == nil then GuildRoll_minPE = GuildRoll.VARS.minPE end
- -- if GuildRoll_progress == nil then GuildRoll_progress = "T1" end
- -- if GuildRoll_discount == nil then GuildRoll_discount = 0.25 end
   if GuildRollAltspool == nil then GuildRollAltspool = true end
   if GuildRoll_altpercent == nil then GuildRoll_altpercent = 1.0 end
   if GuildRoll_debug == nil then GuildRoll_debug = {} end
   if GuildRoll_showAllRollButtons == nil then GuildRoll_showAllRollButtons = false end
   if GuildRoll_debugAdminLog == nil then GuildRoll_debugAdminLog = false end
-  --if GuildRoll_showRollWindow == nil then GuildRoll_showRollWindow = true end
   -- Initialize runtime-only raid filter flags (not saved to SavedVariables)
   GuildRoll_memberlist_raidonly = false
   GuildRoll_standings_raidonly = false
   self:RegisterDB("GuildRoll_fubar")
   self:RegisterDefaults("char",{})
-  --table.insert(GuildRoll_debug,{[date("%b/%d %H:%M:%S")]="OnInitialize"})
 end
 
 function GuildRoll:OnEnable() -- PLAYER_LOGIN (2)
-  --table.insert(GuildRoll_debug,{[date("%b/%d %H:%M:%S")]="OnEnable"})
   GuildRoll._playerLevel = UnitLevel("player")
   --GuildRoll.extratip = (GuildRoll.extratip) or CreateFrame("GameTooltip","guildroll_tooltip",UIParent,"GameTooltipTemplate")
   GuildRoll._versionString = GetAddOnMetadata("guildroll","Version")
@@ -901,15 +896,12 @@ function GuildRoll:OnEnable() -- PLAYER_LOGIN (2)
     end)
   self:RegisterEvent("RAID_ROSTER_UPDATE",function()
       GuildRoll:SetRefresh(true)
-     -- GuildRoll:testLootPrompt()
     end)
   self:RegisterEvent("PARTY_MEMBERS_CHANGED",function()
       GuildRoll:SetRefresh(true)
-     -- GuildRoll:testLootPrompt()
     end)
   self:RegisterEvent("PLAYER_ENTERING_WORLD",function()
       GuildRoll:SetRefresh(true)
-     -- GuildRoll:testLootPrompt()
     end)
   if GuildRoll._playerLevel and GuildRoll._playerLevel < MAX_PLAYER_LEVEL then
     self:RegisterEvent("PLAYER_LEVEL_UP", function()
@@ -924,13 +916,6 @@ function GuildRoll:OnEnable() -- PLAYER_LOGIN (2)
         end
       end)
   end
- -- self:RegisterEvent("CHAT_MSG_RAID","captureLootCall")
- -- self:RegisterEvent("CHAT_MSG_RAID_LEADER","captureLootCall")
- -- self:RegisterEvent("CHAT_MSG_RAID_WARNING","captureLootCall")
- -- self:RegisterEvent("CHAT_MSG_WHISPER","captureBid")
- -- self:RegisterEvent("CHAT_MSG_LOOT","captureLoot")
- -- self:RegisterEvent("TRADE_PLAYER_ITEM_CHANGED","tradeLoot")
- -- self:RegisterEvent("TRADE_ACCEPT_UPDATE","tradeLoot")
 
   if AceLibrary("AceEvent-2.0"):IsFullyInitialized() then
     self:AceEvent_FullyInitialized()
@@ -940,14 +925,10 @@ function GuildRoll:OnEnable() -- PLAYER_LOGIN (2)
 end
 
 function GuildRoll:OnDisable()
-
---DEFAULT_CHAT_FRAME:AddMessage("GuildRoll:OnDisable()") 
-  --table.insert(GuildRoll_debug,{[date("%b/%d %H:%M:%S")]="OnDisable"})
   self:UnregisterAllEvents()
 end
 
 function GuildRoll:AceEvent_FullyInitialized() -- SYNTHETIC EVENT, later than PLAYER_LOGIN, PLAYER_ENTERING_WORLD (3)
-  --table.insert(GuildRoll_debug,{[date("%b/%d %H:%M:%S")]="AceEvent_FullyInitialized"})
   if self._hasInitFull then return end
   
   for i=1,NUM_CHAT_WINDOWS do
@@ -980,13 +961,6 @@ function GuildRoll:AceEvent_FullyInitialized() -- SYNTHETIC EVENT, later than PL
     self:ScheduleEvent("guildrollChannelInit",self.delayedInit,delay,self)
   end
 
-  -- if pfUI loaded, skin the extra tooltip
- --if not IsAddOnLoaded("pfUI-addonskins") then
- --  if (pfUI) and pfUI.api and pfUI.api.CreateBackdrop and pfUI_config and pfUI_config.tooltip and pfUI_config.tooltip.alpha then
- --    pfUI.api.CreateBackdrop(GuildRoll.extratip,nil,nil,tonumber(pfUI_config.tooltip.alpha))
- --  end
- --end
-
   self._hasInitFull = true
 end
 
@@ -1002,9 +976,8 @@ function GuildRoll:OnMenuRequest()
   D:FeedAceOptionsTable(self._options)
 end
 
- 
+
 function GuildRoll:delayedInit()
-  --table.insert(GuildRoll_debug,{[date("%b/%d %H:%M:%S")]="delayedInit"})
   GuildRoll.VARS.GuildName  =""
   if (IsInGuild()) then
     GuildRoll.VARS.GuildName  = (GetGuildInfo("player"))
@@ -2319,6 +2292,14 @@ function GuildRoll:EnsureTabletOwner()
     owner = _guildroll_tablet_owner
   end)
   return owner or UIParent
+end
+
+-- SafeDewdropAddLine: Centralized safe wrapper for Dewdrop:AddLine usage
+-- Prevents Dewdrop crashes by wrapping D:AddLine with pcall + unpack(arg)
+-- Note: In Lua 5.0 (WoW 1.12), varargs (...) cannot be passed directly to pcall.
+-- We must use unpack(arg) to forward the arguments.
+function GuildRoll:SafeDewdropAddLine(...)
+  pcall(D.AddLine, D, unpack(arg))
 end
 
 function GuildRoll:ResetFrames()
