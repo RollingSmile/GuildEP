@@ -1004,11 +1004,6 @@ function GuildRoll:delayedInit()
     _G["GuildEpRollButton"] = _G["ShootyRollButton"]
   end
    
-  local major_ver = 0 --self._version.major or 0
- -- if IsGuildLeader() and ( (GuildRoll_dbver == nil) or (major_ver > GuildRoll_dbver) ) then
- --   GuildRoll[string.format("v%dtov%d",(GuildRoll_dbver or 2),major_ver)](GuildRoll)
- -- end
- 
   -- init options and comms
   self._options = self:buildMenu()
   self:RegisterChatCommand({"/groll"},self.cmdtable())
@@ -1273,24 +1268,6 @@ function GuildRoll:addonComms(prefix,message,channel,sender)
         alts = (alts == "true") and true or false
         altspct = tonumber(altspct)
         local settings_notice
-        --if progress and progress ~= GuildRoll_progress then
-        --  GuildRoll_progress = progress
-        --  settings_notice = L["New raid progress"]
-        --end
-        --if discount and discount ~= GuildRoll_discount then
-        --  GuildRoll_discount = discount
-        --  if (settings_notice) then
-        --    settings_notice = settings_notice..L[", offspec price %"]
-        --  else
-        --    settings_notice = L["New offspec price %"]
-        --  end
-        --end
-        -- Minimum EP removed: now local to each admin and not shared
-        --if minPE and minPE ~= GuildRoll_minPE then
-        --  GuildRoll_minPE = minPE
-        --  settings_notice = L["New Minimum MainStanding"]
-        --  GuildRoll:refreshPRTablets()
-        --end
         if decay and decay ~= GuildRoll_decay then
           GuildRoll_decay = decay
           if (admin()) then
@@ -3652,5 +3629,5 @@ function GuildRollMSG:OnCHAT_MSG_ADDON( prefix, text, channel, sender)
 		end
 end
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress,GuildRoll_discount,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_groupbyrole,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRollAltspool,GuildRoll_altpercent,GuildRoll_log,GuildRoll_dbver,GuildRoll_debug,GuildRoll_fubar,GuildRoll_showRollWindow
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs

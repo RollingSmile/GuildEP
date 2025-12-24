@@ -510,5 +510,5 @@ function GuildRoll_standings:OnTooltipUpdate()
   end
 end
 
--- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main,GuildRoll_progress
+-- GLOBALS: GuildRoll_saychannel,GuildRoll_groupbyclass,GuildRoll_groupbyarmor,GuildRoll_decay,GuildRoll_minPE,GuildRoll_main
 -- GLOBALS: GuildRoll,GuildRoll_prices,GuildRoll_standings,GuildRoll_bids,GuildRoll_loot,GuildRollAlts,GuildRoll_logs
