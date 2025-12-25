@@ -361,18 +361,13 @@ local function CreateRollButton(name, parent, command, anchor, width, font, isAd
         pcall(function() button:GetFontString():SetFont("Fonts\\FRIZQT__.TTF", 10) end)
     end
     
-    -- Add blue color for special buttons: CSR, SR, EP(MS)
+    -- Add turquoise/cyan color for special buttons: CSR, SR, EP(MS)
     if name == "CSR" or name == "SR" or name == "EP(MS)" then
         pcall(function()
-            -- Set the normal texture to blue
+            -- Set the normal texture to turquoise/cyan
             local normalTexture = button:GetNormalTexture()
             if normalTexture then
-                normalTexture:SetVertexColor(0.2, 0.6, 1.0, 1.0)
-            end
-            -- Set text color to white for readability
-            local fontString = button:GetFontString()
-            if fontString then
-                fontString:SetTextColor(1.0, 1.0, 1.0, 1.0)
+                normalTexture:SetVertexColor(0.2, 0.9, 0.9, 1.0)
             end
         end)
     end
