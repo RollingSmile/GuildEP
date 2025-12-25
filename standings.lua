@@ -354,36 +354,95 @@ end
 function GuildRoll_standings:BuildStandingsTable()
   local t = { }
   local r = { }
+  local alt_to_main = {}  -- Maps alt name to main name
+  local main_to_alts = {}  -- Maps main name to list of online alts in raid
+  
+  -- First pass: Build alt-to-main mapping and main-to-alts mapping
+  for i = 1, GetNumGuildMembers(1) do
+    local name, g_rank, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
+    local main_name, main_class, main_rank = GuildRoll:parseAlt(name, officernote)
+    
+    if main_name then
+      -- This character is an alt
+      alt_to_main[name] = {main = main_name, class = main_class, rank = main_rank}
+      
+      -- Initialize main-to-alts mapping if needed
+      if not main_to_alts[main_name] then
+        main_to_alts[main_name] = {}
+      end
+      table.insert(main_to_alts[main_name], name)
+    end
+  end
+  
+  -- Build raid presence set and track which mains to show via alts
+  local main_via_alt = {}  -- Mains to show because their alt is in raid
   if (GuildRoll_standings_raidonly) and GetNumRaidMembers() > 0 then
     for i = 1, GetNumRaidMembers(true) do
       local name, rank, subgroup, level, class, fileName, zone, online, isDead = GetRaidRosterInfo(i) 
       r[name] = true
+      
+      -- If this raid member is an alt, mark the main to be shown
+      if alt_to_main[name] then
+        local main_info = alt_to_main[name]
+        if not main_via_alt[main_info.main] then
+          main_via_alt[main_info.main] = {}
+        end
+        table.insert(main_via_alt[main_info.main], name)
+      end
     end
   end
+  
+  -- Second pass: Build standings table
   GuildRoll.alts = {}
   for i = 1, GetNumGuildMembers(1) do
     local name, g_rank, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
     local ep = (GuildRoll:get_ep_v3(name,officernote) or 0) 
-    local main, main_class, main_rank = GuildRoll:parseAlt(name,officernote)
+    local main_name, main_class, main_rank = GuildRoll:parseAlt(name,officernote)
     
-    -- NoPugs: Removed getPugName call - displayName is just name
+    -- displayName starts as the character name
     local displayName = name
 
-    if (main) then
+    if (main_name) then
+      -- This is an alt character
       if ((GuildRoll._playerName) and (name == GuildRoll._playerName)) then
-        if (not GuildRoll_main) or (GuildRoll_main and GuildRoll_main ~= main) then
-          GuildRoll_main = main
+        if (not GuildRoll_main) or (GuildRoll_main and GuildRoll_main ~= main_name) then
+          GuildRoll_main = main_name
           GuildRoll:defaultPrint(string.format(L["Your main has been set to %s"],GuildRoll_main))
         end
       end
-      main = C:Colorize(BC:GetHexColor(main_class), main)
-      GuildRoll.alts[main] = GuildRoll.alts[main] or {}
-      GuildRoll.alts[main][name] = class
+      -- Store colorized main in GuildRoll.alts for display purposes
+      local colorized_main = C:Colorize(BC:GetHexColor(main_class), main_name)
+      GuildRoll.alts[colorized_main] = GuildRoll.alts[colorized_main] or {}
+      GuildRoll.alts[colorized_main][name] = class
     end
+    
     local armor_class = self:getArmorClass(class)
     if ep > 0 then
       if (GuildRoll_standings_raidonly) and next(r) then
-        if r[name] then
+        -- Include if character is in raid OR if character is a main with an alt in raid
+        if r[name] or main_via_alt[name] then
+          -- If this is a main being shown due to alt presence, add indicator
+          if main_via_alt[name] and not r[name] then
+            -- Build alt indicator
+            local alt_names = main_via_alt[name]
+            local alt_count = table.getn(alt_names)
+            local alt_suffix = ""
+            
+            if alt_count == 1 then
+              alt_suffix = " (alt online: " .. alt_names[1] .. ")"
+            elseif alt_count <= 3 then
+              -- Show up to 3 alts
+              alt_suffix = " (alts online: " .. table.concat(alt_names, ", ") .. ")"
+            else
+              -- Show first 3 and count
+              local first_three = {alt_names[1], alt_names[2], alt_names[3]}
+              alt_suffix = " (alts online: " .. table.concat(first_three, ", ") .. " +" .. (alt_count - 3) .. " more)"
+            end
+            
+            -- Append suffix to name (coloring will be done in OnTooltipUpdate)
+            displayName = name .. alt_suffix
+          end
+          
           table.insert(t,{displayName,class,armor_class,ep,ep,name,g_rank})
         end
       else
@@ -391,6 +450,7 @@ function GuildRoll_standings:BuildStandingsTable()
       end
     end
   end
+  
   if (GuildRoll_groupbyclass) then
     table.sort(t, function(a,b)
       if (a[2] ~= b[2]) then return a[2] > b[2]
