@@ -24,53 +24,9 @@ do
   if not ok or not L then return end
 end
 
--- Register localization strings (English defaults only)
-L:RegisterTranslations("enUS", function() return {
-  ["RollWithEP - Loot Session"] = true,
-  ["No active loot session"] = true,
-  ["Item: %s"] = true,
-  ["Status: %s"] = true,
-  ["OPEN"] = true,
-  ["CLOSED"] = true,
-  ["Player"] = true,
-  ["Roll"] = true,
-  ["Type"] = true,
-  ["Flags"] = true,
-  ["Winner"] = true,
-  ["Tie"] = true,
-  ["Start Rolls"] = true,
-  ["Stop Rolls"] = true,
-  ["Ask Tie Roll"] = true,
-  ["Close Rolls"] = true,
-  ["Give to Winner"] = true,
-  ["Give to DE/Bank"] = true,
-  ["Give to Player"] = true,
-  ["Close"] = true,
-  ["Select Player"] = true,
-  ["Only master looter or raid leader admin can use this feature."] = true,
-  ["No active loot session."] = true,
-  ["Started roll session for: %s"] = true,
-  ["Stopped roll session."] = true,
-  ["Roll session closed."] = true,
-  ["Item given to: %s"] = true,
-  ["Item marked for DE/Bank"] = true,
-  ["No raid members found."] = true,
-  ["Roll for %s"] = true,
-  ["SoftReserves: %s"] = true,
-  ["Winner: %s"] = true,
-  ["Tie detected between: %s"] = true,
-  ["Tie roll for %s - Roll now!"] = true,
-  ["%s receives %s"] = true,
-  ["%s (for DE/Bank)"] = true,
-  ["Select DE/Bank player"] = true,
-  ["Confirm award %s to %s?"] = true,
-  ["Confirm"] = true,
-  ["Cancel"] = true,
-  ["Award confirmed"] = true,
-  ["Award cancelled"] = true,
-  ["Loot found:"] = true,
-  ["Start rolling for %s"] = true,
-} end)
+-- Use existing localization from localization.lua
+-- RollWithEP-specific strings should be added to localization.lua instead
+-- For now, we just use the existing locale instance without registering new translations
 
 -- Initialize saved variable for DE/Bank persistence
 if not GuildRoll.VARS then
