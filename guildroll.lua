@@ -2779,7 +2779,11 @@ StaticPopupDialogs["GUILDROLL_GIVE_EP"] = {
     end
     
     -- Call give_ep_to_member which handles validation, alt->main conversion, scaling, logging
-    pcall(function() GuildRoll:give_ep_to_member(targetName, epValue) end)
+    local success, err = pcall(function() GuildRoll:give_ep_to_member(targetName, epValue) end)
+    if not success then
+      UIErrorsFrame:AddMessage("Error awarding EP: " .. tostring(err), 1.0, 0.0, 0.0, 1.0)
+      DEFAULT_CHAT_FRAME:AddMessage("|cffff0000Error awarding EP to " .. tostring(targetName) .. ": " .. tostring(err) .. "|r")
+    end
     GuildRoll:refreshPRTablets()
     
     -- Clear pending variables to prevent stale data on next dialog open
