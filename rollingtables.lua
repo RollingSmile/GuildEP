@@ -24,9 +24,15 @@ local function StripRealm(name)
 end
 
 -- Helper: Check if player has permission to manage rolls
--- Permission: Admin AND (Master Looter OR (RaidLeader when not master loot))
+-- Permission: RAID + Admin AND (Master Looter OR (RaidLeader when not master loot))
 local function IsAdminAndMLOrRLWhenNoML()
   if not GuildRoll or not GuildRoll.IsAdmin then
+    return false
+  end
+  
+  -- Pre-check: Must be in a raid (not party, not solo)
+  local ok, numRaidMembers = pcall(GetNumRaidMembers)
+  if not ok or not numRaidMembers or numRaidMembers == 0 then
     return false
   end
   
