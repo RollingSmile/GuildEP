@@ -9,7 +9,6 @@ local BC = AceLibrary("Babble-Class-2.2")
 local T = AceLibrary("Tablet-2.0") -- tooltips
 local L = AceLibrary("AceLocale-2.2"):new("guildroll")
 GuildRoll.VARS = {
-  baseAE = 1,
   AERollCap = 50,
   CSRWeekBonus = 10,  -- Bonus per week for CSR (weeks 2-15: (weeks-1)*10)
   minPE = 0,
@@ -552,7 +551,7 @@ function GuildRoll:buildMenu()
     options.args["ep_actions"].args["reset"] = {
       type = "execute",
       name = L["Reset Standing"],
-      desc = string.format(L["Resets everyone\'s Standing to 0/%d (Admin only)."],GuildRoll.VARS.baseAE),
+      desc = L["Resets everyone\'s Standing to 0 (Admin only)."],
       order = 7,
       hidden = function() return not (IsGuildLeader()) end,
       func = function() StaticPopup_Show("CONFIRM_RESET") end
@@ -1574,15 +1573,17 @@ function GuildRoll:init_notes_v3(guild_index,name,officernote)
 end
 
 function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_action)
+  -- EP-only implementation: initialize notes to {EP} format, update EP value
+  -- gp parameter is kept for compatibility but ignored
+  
+  -- Initialize notes if needed (ensures {EP} format)
   officernote = self:init_notes_v3(guild_index,name,officernote)
   
-  -- Get previous values for logging (after note initialization)
+  -- Get previous EP value for logging (after note initialization)
   local prevEP = self:get_ep_v3(name,officernote) or 0
-  local prevGP = self:get_gp_v3(name,officernote) or 0
   
   local newnote
-  if ( ep ~= nil) then 
-   -- ep = math.max(0,ep)
+  if ep ~= nil then 
     -- Try to match legacy {EP:GP} format first
     local prefix, fullTag, oldEP, oldGP, postfix = string.match(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
     if oldEP then
@@ -1601,15 +1602,17 @@ function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_act
       end)
     end
   end
-  if (gp~= nil) then 
-   -- gp =  math.max(GuildRoll.VARS.baseAE,gp)
-   -- GP updates are ignored in new {EP} format
-   -- For backward compatibility, if note has legacy {EP:GP}, we ignore GP updates
-   -- (GP is no longer tracked in officer notes)
-   newnote = newnote or officernote
+  
+  -- GP parameter is ignored (kept for compatibility only)
+  if gp ~= nil then
+    newnote = newnote or officernote
   end
-  if (newnote) then 
-    GuildRosterSetOfficerNote(guild_index,newnote,true)
+  
+  if newnote then 
+    -- Write officer note with pcall for defensiveness
+    pcall(function()
+      GuildRosterSetOfficerNote(guild_index,newnote,true)
+    end)
     
     -- Add personal logging for EP changes only with compact colorized format
     if ep ~= nil then
@@ -1651,16 +1654,6 @@ function GuildRoll:update_ep_v3(getname,ep)
 end
 
 
-function GuildRoll:update_gp_v3(getname,gp)
-  for i = 1, GetNumGuildMembers(1) do
-    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    if (name==getname) then 
-      self:update_epgp_v3(nil,gp,i,name,officernote) 
-    end
-  end  
-end
-
-
 function GuildRoll:get_ep_v3(getname,officernote) -- gets ep by name or note
   if (officernote) then
     -- Try new {EP} format first
@@ -1686,37 +1679,6 @@ function GuildRoll:get_ep_v3(getname,officernote) -- gets ep by name or note
   return
 end
 
-function GuildRoll:get_gp_v3(getname,officernote) -- gets gp by name or officernote
-  if (officernote) then
-    -- Try legacy {EP:GP} format
-    local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
-    if gp then
-      return tonumber(gp)
-    end
-    -- New {EP} format has no GP, return base value
-    local _,_,ep = string.find(officernote,".*{(%d+)}.*")
-    if ep then
-      return GuildRoll.VARS.baseAE
-    end
-    return nil
-  end
-  for i = 1, GetNumGuildMembers(1) do
-    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    if (name==getname) then
-      -- Try legacy {EP:GP} format
-      local _,_,gp = string.find(officernote,".*{%d+:(%-?%d+)}.*")
-      if gp then
-        return tonumber(gp)
-      end
-      -- New {EP} format has no GP, return base value
-      local _,_,ep = string.find(officernote,".*{(%d+)}.*")
-      if ep then
-        return GuildRoll.VARS.baseAE
-      end
-    end
-  end
-  return
-end
 
 function GuildRoll:give_ep_to_raid(ep) -- awards ep to raid members in zone
   -- Validate input
@@ -2068,28 +2030,13 @@ function GuildRoll:decay_epgp_v3()
 end
 
 
-function GuildRoll:gp_reset_v3()
-  if (IsGuildLeader()) then
-    for i = 1, GetNumGuildMembers(1) do
-      local name,_,_,_,class,_,note,officernote,_,_ = GetGuildRosterInfo(i)
-      local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-      if (ep and gp) then
-        self:update_epgp_v3(0,GuildRoll.VARS.baseAE,i,name,officernote)
-      end
-    end
-    local msg = L["All Standing has been reset to 0/%d."]
-    self:debugPrint(string.format(msg,GuildRoll.VARS.baseAE))
-    self:adminSay(string.format(msg,GuildRoll.VARS.baseAE))
-    self:addToLog(string.format(msg,GuildRoll.VARS.baseAE))
-  end
-end
 
 function GuildRoll:reset_ep_v3()
   if (IsGuildLeader()) then
     for i = 1, GetNumGuildMembers(1) do
       local name,_,_,_,class,_,note,officernote,_,_ = GetGuildRosterInfo(i)
-      local ep,gp = self:get_ep_v3(name,officernote), self:get_gp_v3(name,officernote)
-      if (ep and gp) then
+      local ep = self:get_ep_v3(name,officernote)
+      if ep then
         self:update_epgp_v3(0,nil,i,name,officernote)
       end
     end
@@ -2243,13 +2190,12 @@ end
 
 
 function GuildRoll:my_epgp_announce(use_main)
-  local ep,gp
+  local ep
   if (use_main) then
-    ep,gp = (self:get_ep_v3(GuildRoll_main) or 0), (self:get_gp_v3(GuildRoll_main) or GuildRoll.VARS.baseAE)
+    ep = self:get_ep_v3(GuildRoll_main) or 0
   else
-    ep,gp = (self:get_ep_v3(self._playerName) or 0), (self:get_gp_v3(self._playerName) or GuildRoll.VARS.baseAE)
+    ep = self:get_ep_v3(self._playerName) or 0
   end
-  local baseRoll = GuildRoll:GetBaseRollValue(ep,gp)
   local msg = string.format(L["You now have: %d MainStanding"], ep)
   self:defaultPrint(msg)
 end
@@ -3430,15 +3376,12 @@ end
 -- Returns the base roll value for the player.
 -- Now returns only EP (MainStanding). GP (AuxStanding) is no longer included in roll calculations.
 function GuildRoll:GetBaseRollValue(ep,gp)
-
-    return  ep
-
+    return ep
 end
 
 function GuildRoll:RollCommand(isSRRoll, bonus)
   local playerName = UnitName("player")
   local ep = 0 
-  local gp = 0
   local desc = ""  
   -- Check if the player is an alt
   if GuildRollAltspool then
@@ -3446,24 +3389,21 @@ function GuildRoll:RollCommand(isSRRoll, bonus)
     if main then
       -- If the player is an alt, use the main's EP
       ep = self:get_ep_v3(main) or 0
-      gp = self:get_gp_v3(main) or 0
       desc = "Alt of "..main
     else
       -- If not an alt, use the player's own EP
       ep = self:get_ep_v3(playerName) or 0
-      gp = self:get_gp_v3(playerName) or 0
       desc = "Main"
     end
   else
     -- If alt pooling is not enabled, just use the player's EP
     ep = self:get_ep_v3(playerName) or 0
-    gp = self:get_gp_v3(playerName) or 0
     desc = "Main"
   end
   
   -- Calculate the roll range based on whether it's an SR roll or not
   local minRoll, maxRoll
-  local baseRoll = GuildRoll:GetBaseRollValue(ep,gp)
+  local baseRoll = GuildRoll:GetBaseRollValue(ep,0)
   -- New EP-aware roll ranges
   if isSRRoll then
     -- SR: 100 + baseRoll to 200 + baseRoll
