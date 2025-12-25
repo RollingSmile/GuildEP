@@ -44,8 +44,8 @@ function GuildRoll:personalLogAdd(target, action)
   GuildRoll_personalLogSaved[name] = GuildRoll_personalLogSaved[name] or {}
   table.insert(GuildRoll_personalLogSaved[name], {ts, action})
   
-  -- Trim to last 200 entries efficiently
-  local max_keep = 200
+  -- Trim to last 100 entries efficiently
+  local max_keep = 100
   if table.getn(GuildRoll_personalLogSaved[name]) > max_keep then
     local newLog = {}
     local startIdx = table.getn(GuildRoll_personalLogSaved[name]) - max_keep + 1

@@ -111,34 +111,6 @@ local function _insertTagBeforeEP(officernote, tag)
   end
 end
 
--- Helper: backup GP value before converting {EP:GP} to {EP}
--- name: player name
--- gpValue: GP value to backup
--- officernote: original officer note
--- preserveExisting: if true, only backup if no backup exists (default: false)
--- Returns: true if backup was created, false if skipped
-local function _backupGP(name, gpValue, officernote, preserveExisting)
-  -- Apply default for preserveExisting
-  preserveExisting = preserveExisting or false
-  
-  if not GuildRoll_oldGP then
-    GuildRoll_oldGP = {}
-  end
-  
-  -- Check if we should preserve existing backup
-  if preserveExisting and GuildRoll_oldGP[name] then
-    return false  -- Skip backup, preserve original
-  end
-  
-  GuildRoll_oldGP[name] = {
-    gp = tonumber(gpValue),
-    timestamp = time(),
-    oldNote = officernote
-  }
-  
-  return true
-end
-
 -- Helper: attempt to run main tag migration with throttle check
 -- Returns true if migration was attempted, false if throttled
 local function _attemptThrottledMigration(self)
@@ -1522,159 +1494,6 @@ end
 ---------------------
 
 
-function GuildRoll:init_notes_v3(guild_index,name,officernote)
-  local ep = self:get_ep_v3(name,officernote)
-  if ep == nil then
-    -- Initialize with new {EP} format (EP-only, no GP)
-    local initstring = string.format("{%d}",0)
-    local newnote = string.format("%s%s",officernote,initstring)
-    -- Remove any legacy {EP:GP} patterns
-    newnote = string.gsub(newnote,"(.*)({%d+:%-?%d+})(.*)",function(prefix,tag,postfix)
-      return string.format("%s%s",prefix,postfix)
-    end)
-    -- Ensure new tag fits within note length
-    if string.len(newnote) > MAX_NOTE_LEN then
-      local tagLen = string.len(initstring)
-      local availableLen = MAX_NOTE_LEN - tagLen
-      local trimmed = string.sub(officernote, 1, availableLen)
-      newnote = trimmed .. initstring
-    end
-    officernote = newnote
-  else
-    -- Note already has EP value, ensure proper format
-    -- If it has legacy {EP:GP}, convert to {EP}
-    local hasLegacy = string.find(officernote,"{%d+:%-?%d+}")
-    if hasLegacy then
-      -- Convert {EP:GP} to {EP}
-      -- Pattern captures: prefix, fullTag, epVal, gpVal, postfix (5 total)
-      local prefix, fullTag, epVal, gpVal, postfix = string.match(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
-      if epVal then
-        -- Backup GP value before conversion (always overwrite on init)
-        _backupGP(name, gpVal, officernote, false)
-        
-        local newTag = string.format("{%d}", tonumber(epVal))
-        local newNote = (prefix or "") .. newTag .. (postfix or "")
-        if string.len(newNote) <= MAX_NOTE_LEN then
-          officernote = newNote
-        end
-      end
-    end
-  end
-  GuildRosterSetOfficerNote(guild_index,officernote,true)
-  return officernote
-end
-
-function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_action)
-  -- EP-only implementation: initialize notes to {EP} format, update EP value
-  -- gp parameter is kept for compatibility but ignored
-  
-  -- Initialize notes if needed (ensures {EP} format)
-  officernote = self:init_notes_v3(guild_index,name,officernote)
-  
-  -- Get previous EP value for logging (after note initialization)
-  local prevEP = self:get_ep_v3(name,officernote) or 0
-  
-  local newnote
-  if ep ~= nil then 
-    -- Try to match legacy {EP:GP} format first
-    local prefix, fullTag, oldEP, oldGP, postfix = string.match(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
-    if oldEP then
-      -- Has legacy format - backup GP and convert to new {EP} format
-      -- Uses preserveExisting=true to keep the ORIGINAL GP value from first backup
-      _backupGP(name, oldGP, officernote, true)
-      
-      -- Convert to new {EP} format while updating
-      newnote = string.gsub(officernote,"(.-)({%d+:%-?%d+})(.*)",function(prefix,tag,postfix)
-        return string.format("%s{%d}%s",prefix,ep,postfix)
-      end)
-    else
-      -- Update new {EP} format
-      newnote = string.gsub(officernote,"(.-)({%d+})(.*)",function(prefix,tag,postfix)
-        return string.format("%s{%d}%s",prefix,ep,postfix)
-      end)
-    end
-  end
-  
-  -- GP parameter is ignored (kept for compatibility only)
-  if gp ~= nil then
-    newnote = newnote or officernote
-  end
-  
-  if newnote then 
-    -- Write officer note with pcall for defensiveness
-    local success, err = pcall(function()
-      GuildRosterSetOfficerNote(guild_index,newnote,true)
-    end)
-    
-    if not success then
-      self:debugPrint(string.format("Error updating officer note for %s: %s", name or "unknown", tostring(err)))
-    end
-    
-    -- Add personal logging for EP changes only with compact colorized format
-    if ep ~= nil then
-      local actor = UnitName("player")
-      local changeEP = ep - prevEP
-      
-      -- Colorize delta: green for positive, red for negative
-      local deltaStr
-      if changeEP >= 0 then
-        deltaStr = C:Green(string.format("+%d", changeEP))
-      else
-        deltaStr = C:Red(string.format("%d", changeEP))
-      end
-      
-      -- Build suffix based on special_action
-      local suffix = ""
-      if special_action == "RAID" then
-        suffix = " (Raid)"
-      elseif special_action == "DECAY" then
-        suffix = " (Decay)"
-      end
-      
-      -- Compact format: EP: Prev -> New (±N) by AdminName[ (Raid)|(Decay)]
-      local logMsg = string.format("EP: %d -> %d (%s) by %s%s", prevEP, ep, deltaStr, actor, suffix)
-      self:personalLogAdd(name, logMsg)
-    end
-  end
-end
-
-
-
-function GuildRoll:update_ep_v3(getname,ep)
-  for i = 1, GetNumGuildMembers(1) do
-    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    if (name==getname) then 
-      self:update_epgp_v3(ep,nil,i,name,officernote)
-    end
-  end  
-end
-
-
-function GuildRoll:get_ep_v3(getname,officernote) -- gets ep by name or note
-  if (officernote) then
-    -- Try new {EP} format first
-    local _,_,ep = string.find(officernote,".*{(%d+)}.*")
-    if ep then
-      return tonumber(ep)
-    end
-    -- Fall back to legacy {EP:GP} format
-    local _,_,ep_legacy = string.find(officernote,".*{(%d+):%-?%d+}.*")
-    return tonumber(ep_legacy)
-  end
-  for i = 1, GetNumGuildMembers(1) do
-    local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
-    -- Try new {EP} format first
-    local _,_,ep = string.find(officernote,".*{(%d+)}.*")
-    if ep and (name==getname) then
-      return tonumber(ep)
-    end
-    -- Fall back to legacy {EP:GP} format
-    local _,_,ep_legacy = string.find(officernote,".*{(%d+):%-?%d+}.*")
-    if (name==getname) then return tonumber(ep_legacy) end
-  end
-  return
-end
-
 
 function GuildRoll:give_ep_to_raid(ep) -- awards ep to raid members in zone
   -- Validate input
@@ -1988,15 +1807,7 @@ function GuildRoll:givename_ep(getname,ep,block)
 end
 
 
-function GuildRoll:TFind ( t, e) 
-if not t then return nil end
-    for i, item in ipairs(t) do 
-		if item == e then 
-			return i 
-		end
-    end
-return nil
-end
+
 
 
 
@@ -2048,141 +1859,6 @@ function GuildRoll:ep_reset_v3()
   return self:reset_ep_v3()
 end
 
--- migrateToEPOnly: Convert officer notes from {EP:GP} format to {EP} format
--- Backs up GP values to GuildRoll_oldGP saved variable
--- Admin-only function with throttled updates to avoid server spam
-function GuildRoll:migrateToEPOnly(throttleDelay)
-  -- Admin permission check
-  if not self:IsAdmin() then
-    self:defaultPrint(L["You must be a guild officer or leader to run this migration."] or "You must be a guild officer or leader to run this migration.")
-    return
-  end
-  
-  -- Default throttle delay
-  throttleDelay = tonumber(throttleDelay) or 0.25
-  if throttleDelay < 0.1 then
-    throttleDelay = 0.1  -- Minimum safety threshold
-  end
-  
-  -- Initialize GuildRoll_oldGP if it doesn't exist
-  if not GuildRoll_oldGP then
-    GuildRoll_oldGP = {}
-  end
-  
-  -- Scan roster and collect members needing migration
-  local toMigrate = {}
-  local ok, numMembers = pcall(function()
-    if not IsInGuild() then return 0 end
-    return GetNumGuildMembers(1) or 0
-  end)
-  
-  if not ok or numMembers == 0 then
-    self:defaultPrint("Guild roster not available. Please try again in a moment.")
-    return
-  end
-  
-  for i = 1, numMembers do
-    local success, name, rank, rankIndex, level, class, zone, note, officernote = pcall(GetGuildRosterInfo, i)
-    if success and name and officernote then
-      -- Match {EP:GP} pattern (support optional negative GP)
-      -- Pattern captures: prefix, fullTag, ep, gp, postfix (5 total)
-      local prefix, fullTag, ep, gp, postfix = string.match(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
-      if ep and gp then
-        table.insert(toMigrate, {
-          name = name,
-          oldNote = officernote,
-          prefix = prefix or "",
-          ep = tonumber(ep),
-          gp = tonumber(gp),
-          postfix = postfix or ""
-        })
-      end
-    end
-  end
-  
-  if table.getn(toMigrate) == 0 then
-    self:defaultPrint("No officer notes found with {EP:GP} format. Migration complete.")
-    return
-  end
-  
-  self:defaultPrint(string.format("Starting migration of %d member(s) from {EP:GP} to {EP} format...", table.getn(toMigrate)))
-  
-  -- Create frame for throttled updates
-  local frame = CreateFrame("Frame")
-  local currentIndex = 1
-  local timeSinceLastUpdate = 0
-  
-  frame:SetScript("OnUpdate", function()
-    local elapsed = arg1  -- Lua 5.0 uses arg1 for elapsed time
-    timeSinceLastUpdate = timeSinceLastUpdate + elapsed
-    
-    if timeSinceLastUpdate >= throttleDelay and currentIndex <= table.getn(toMigrate) then
-      timeSinceLastUpdate = 0
-      
-      local entry = toMigrate[currentIndex]
-      
-      -- Build new note with {EP} format
-      local newTag = string.format("{%d}", entry.ep)
-      local newNote = entry.prefix .. newTag .. entry.postfix
-      
-      -- Ensure note doesn't exceed MAX_NOTE_LEN (31 chars)
-      if string.len(newNote) > MAX_NOTE_LEN then
-        -- Trim prefix and postfix evenly to fit
-        local tagLen = string.len(newTag)
-        local availableLen = MAX_NOTE_LEN - tagLen
-        local prefixLen = string.len(entry.prefix)
-        local postfixLen = string.len(entry.postfix)
-        local totalExtra = prefixLen + postfixLen
-        
-        if totalExtra > availableLen then
-          -- Trim proportionally
-          local prefixAllowed = math.floor((prefixLen / totalExtra) * availableLen)
-          local postfixAllowed = availableLen - prefixAllowed
-          
-          entry.prefix = string.sub(entry.prefix, 1, prefixAllowed)
-          entry.postfix = string.sub(entry.postfix, 1, postfixAllowed)
-          newNote = entry.prefix .. newTag .. entry.postfix
-        end
-      end
-      
-      -- Backup GP value to saved variable
-      GuildRoll_oldGP[entry.name] = {
-        gp = entry.gp,
-        timestamp = time(),
-        oldNote = entry.oldNote,
-        newNote = newNote
-      }
-      
-      -- Find current roster index for this member (roster may have reordered)
-      local foundIndex = nil
-      for i = 1, GetNumGuildMembers(1) do
-        local success, checkName = pcall(GetGuildRosterInfo, i)
-        if success and checkName == entry.name then
-          foundIndex = i
-          break
-        end
-      end
-      
-      if foundIndex then
-        -- Apply the note change
-        local success, err = pcall(GuildRosterSetOfficerNote, foundIndex, newNote)
-        if not success then
-          GuildRoll:defaultPrint(string.format("Failed to update %s: %s", entry.name, tostring(err)))
-        end
-      end
-      
-      currentIndex = currentIndex + 1
-      
-      -- Cleanup when done
-      if currentIndex > table.getn(toMigrate) then
-        frame:SetScript("OnUpdate", nil)
-        GuildRoll:defaultPrint(string.format("Migration complete! Converted %d member(s) to {EP} format. GP values backed up to GuildRoll_oldGP.", table.getn(toMigrate)))
-      end
-    end
-  end)
-end
-
-
 
 
 function GuildRoll:my_epgp_announce(use_main)
@@ -2214,83 +1890,6 @@ GuildRoll.independentProfile = true
 
 -- Constant for maximum number of detached frames to scan
 local MAX_DETACHED_FRAMES = 100
-
--- Shared method: find an existing detached Tablet frame by owner name
-function GuildRoll:FindDetachedFrame(ownerName)
-  if not ownerName then return nil end
-  for i = 1, MAX_DETACHED_FRAMES do
-    local f = _G[string.format("Tablet20DetachedFrame%d", i)]
-    if f and f.owner and f.owner == ownerName then
-      return f
-    end
-  end
-  return nil
-end
-
--- Cached dummy owner frame for Tablet tooltips
--- This prevents "Detached tooltip has no owner" errors from Tablet-2.0
-local _guildroll_tablet_owner = nil
-
--- Centralized function to ensure Tablet tooltips have a valid owner
--- This prevents Tablet-2.0 from asserting when detaching tooltips without an owner
--- Call this after T:Register() to set tooltip.owner if it's missing
--- Returns the dummy owner frame (or UIParent as fallback)
-function GuildRoll:EnsureTabletOwner()
-  local owner = nil
-  pcall(function()
-    -- Create or reuse the cached dummy owner frame
-    if not _guildroll_tablet_owner then
-      local ok, f = pcall(function() 
-        return CreateFrame and CreateFrame("Frame", "GuildRoll_TabletOwner") 
-      end)
-      if ok and f then
-        _guildroll_tablet_owner = f
-      else
-        -- Fallback to UIParent if frame creation fails
-        _guildroll_tablet_owner = UIParent
-      end
-    end
-    owner = _guildroll_tablet_owner
-  end)
-  return owner or UIParent
-end
-
--- SafeDewdropAddLine: Centralized safe wrapper for Dewdrop:AddLine usage
--- Prevents Dewdrop crashes by wrapping D:AddLine with pcall + unpack(arg)
--- Note: In Lua 5.0 (WoW 1.12), varargs (...) cannot be passed directly to pcall.
--- We must use unpack(arg) to forward the arguments.
-function GuildRoll:SafeDewdropAddLine(...)
-  pcall(D.AddLine, D, unpack(arg))
-end
-
-function GuildRoll:ResetFrames()
-  -- Default visible positions for detached frames
-  local defaultPositions = {
-    ["GuildRoll_standings"] = {x = 400, y = 350},
-    ["GuildRollAlts"] = {x = 650, y = 300},
-    ["GuildRoll_logs"] = {x = 800, y = 300},
-    ["GuildRoll_personal_logs"] = {x = 500, y = 200},
-    ["GuildRoll_AdminLog"] = {x = 900, y = 300}
-  }
-  
-  local resetCount = 0
-  for ownerName, pos in pairs(defaultPositions) do
-    local frame = self:FindDetachedFrame(ownerName)
-    if frame then
-      pcall(function()
-        frame:ClearAllPoints()
-        frame:SetPoint("CENTER", UIParent, "BOTTOMLEFT", pos.x, pos.y)
-        resetCount = resetCount + 1
-      end)
-    end
-  end
-  
-  if resetCount > 0 then
-    self:defaultPrint(string.format("Reset %d detached frame(s) to visible positions.", resetCount))
-  else
-    self:defaultPrint("No detached frames found to reset.")
-  end
-end
 
 function GuildRoll:OnTooltipUpdate()
   -- Build hint body (Tablet-2.0 adds "Hint:" label automatically)
@@ -2767,38 +2366,6 @@ end
 ------------
 -- Utility 
 ------------
-function GuildRoll:num_round(i)
-  return math.floor(i+0.5)
-end
-
-function GuildRoll:strsplit(delimiter, subject)
-  local delimiter, fields = delimiter or ":", {}
-  local pattern = string.format("([^%s]+)", delimiter)
-  string.gsub(subject, pattern, function(c) fields[table.getn(fields)+1] = c end)
-  return unpack(fields)
-end
-
-function GuildRoll:strsplitT(delimiter, subject)
- local tbl = {GuildRoll:strsplit(delimiter, subject)}
- return tbl
-end
-
- function GuildRoll:verifyGuildMember(name,silent)
-	return GuildRoll:verifyGuildMember(name,silent,false)
- end
-function GuildRoll:verifyGuildMember(name,silent,ignorelevel)
-  for i=1,GetNumGuildMembers(1) do
-    local g_name, g_rank, g_rankIndex, g_level, g_class, g_zone, g_note, g_officernote, g_online = GetGuildRosterInfo(i)
-    if (string.lower(name) == string.lower(g_name)) and (ignorelevel or tonumber(g_level) >= GuildRoll.VARS.minlevel) then 
-    -- == MAX_PLAYER_LEVEL]]
-      return g_name, g_class, g_rank, g_officernote
-    end
-  end
-  if (name) and name ~= "" and not (silent) then
-    self:defaultPrint(string.format(L["%s not found in the guild or not max level!"],name))
-  end
-  return
-end
 
 function GuildRoll:inRaid(name)
   for i=1,GetNumRaidMembers() do
@@ -2820,20 +2387,6 @@ end
 
 function GuildRoll:testMain()
   self:PromptSetMainIfMissing()
-end
-
-function GuildRoll:make_escable(framename,operation)
-  local found
-  for i,f in ipairs(UISpecialFrames) do
-    if f==framename then
-      found = i
-    end
-  end
-  if not found and operation=="add" then
-    table.insert(UISpecialFrames,framename)
-  elseif found and operation=="remove" then
-    table.remove(UISpecialFrames,found)
-  end
 end
 
 -- suggestedAwardMainStanding: Returns suggested EP award for main standing
@@ -2864,65 +2417,6 @@ function GuildRoll:suggestedAwardAuxStanding()
   end
   
   return GuildRoll.VARS.baseawardpoints
-end
-function GuildRoll:parseVersion(version,otherVersion)
-	if   version then  
-  if not GuildRoll._version then
-      GuildRoll._version = {  
-		major = 0,
-		minor = 0,
-		patch = 0
-	}
-  
-  end
-  for major,minor,patch in string.gfind(version,"(%d+)[^%d]?(%d*)[^%d]?(%d*)") do
-    GuildRoll._version.major = tonumber(major)
-    GuildRoll._version.minor = tonumber(minor)
-    GuildRoll._version.patch = tonumber(patch)
-  end
-  end
-  if (otherVersion) then
-    if not GuildRoll._otherversion then GuildRoll._otherversion = {} end
-    for major,minor,patch in string.gfind(otherVersion,"(%d+)[^%d]?(%d*)[^%d]?(%d*)") do
-      GuildRoll._otherversion.major = tonumber(major)
-      GuildRoll._otherversion.minor = tonumber(minor)
-      GuildRoll._otherversion.patch = tonumber(patch)      
-    end
-    if (GuildRoll._otherversion.major ~= nil and GuildRoll._version ~= nil and GuildRoll._version.major ~= nil) then
-      if (GuildRoll._otherversion.major < GuildRoll._version.major) then -- we are newer
-        return
-      elseif (GuildRoll._otherversion.major > GuildRoll._version.major) then -- they are newer
-        return true, "major"        
-      else -- tied on major, go minor
-        if (GuildRoll._otherversion.minor ~= nil and GuildRoll._version.minor ~= nil) then
-          if (GuildRoll._otherversion.minor < GuildRoll._version.minor) then -- we are newer
-            return
-          elseif (GuildRoll._otherversion.minor > GuildRoll._version.minor) then -- they are newer
-            return true, "minor"
-          else -- tied on minor, go patch
-            if (GuildRoll._otherversion.patch ~= nil and GuildRoll._version.patch ~= nil) then
-              if (GuildRoll._otherversion.patch < GuildRoll._version.patch) then -- we are newer
-                return
-              elseif (GuildRoll._otherversion.patch > GuildRoll._version.patch) then -- they are newwer
-                return true, "patch"
-              end
-            elseif (GuildRoll._otherversion.patch ~= nil and GuildRoll._version.patch == nil) then -- they are newer
-              return true, "patch"
-            end
-          end    
-        elseif (GuildRoll._otherversion.minor ~= nil and GuildRoll._version.minor == nil) then -- they are newer
-          return true, "minor"
-        end
-      end
-    end
-  end
- 
-end
-
-function GuildRoll:camelCase(word)
-  return string.gsub(word,"(%a)([%w_']*)",function(head,tail) 
-    return string.format("%s%s",string.upper(head),string.lower(tail)) 
-    end)
 end
 
 -- IsAdmin: Unified admin permission check with fallback (NO local forced override)
@@ -3285,8 +2779,20 @@ StaticPopupDialogs["GUILDROLL_GIVE_EP"] = {
     end
     
     -- Call give_ep_to_member which handles validation, alt->main conversion, scaling, logging
-    pcall(function() GuildRoll:give_ep_to_member(targetName, epValue) end)
-    GuildRoll:refreshPRTablets()
+    local success, err = pcall(function() GuildRoll:give_ep_to_member(targetName, epValue) end)
+    if not success then
+      UIErrorsFrame:AddMessage("Error awarding EP: " .. tostring(err), 1.0, 0.0, 0.0, 1.0)
+      DEFAULT_CHAT_FRAME:AddMessage("|cffff0000Error awarding EP to " .. tostring(targetName) .. ": " .. tostring(err) .. "|r")
+    else
+      -- Request guild roster update from server
+      pcall(function() GuildRoster() end)
+      -- Schedule a delayed refresh to allow roster data to update (2 seconds delay)
+      pcall(function()
+        GuildRoll:ScheduleEvent("GuildRoll_RefreshAfterEPAward", function()
+          GuildRoll:refreshPRTablets()
+        end, 2)
+      end)
+    end
     
     -- Clear pending variables to prevent stale data on next dialog open
     pcall(function()
