@@ -109,8 +109,8 @@ local ROLE_CONSUMABLES = {
     "Grilled Squid",
     "Elemental Sharpening Stone",
     "Mana Regeneration", --Mageblood Potion
-    "Well Fed";
     "Increased Agility", --Sour Mountain Berry
+    "Well Fed"
   },
   CASTER = {
     "Spirit of Zanza",

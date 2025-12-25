@@ -1215,26 +1215,26 @@ end
 if GuildRoll then
   -- Register events
   pcall(function()
-    GuildRoll:RegisterEvent("CHAT_MSG_SYSTEM", function()
-      OnSystemMessage(arg1)
+    GuildRoll:RegisterEvent("CHAT_MSG_SYSTEM", function(self, msg)
+      OnSystemMessage(msg)
     end)
   end)
   
   pcall(function()
-    GuildRoll:RegisterEvent("CHAT_MSG_RAID", function()
-      OnRaidMessage(arg1, arg2)
+    GuildRoll:RegisterEvent("CHAT_MSG_RAID", function(self, msg, sender)
+      OnRaidMessage(msg, sender)
     end)
   end)
   
   pcall(function()
-    GuildRoll:RegisterEvent("CHAT_MSG_RAID_LEADER", function()
-      OnRaidMessage(arg1, arg2)
+    GuildRoll:RegisterEvent("CHAT_MSG_RAID_LEADER", function(self, msg, sender)
+      OnRaidMessage(msg, sender)
     end)
   end)
   
   pcall(function()
-    GuildRoll:RegisterEvent("CHAT_MSG_ADDON", function()
-      OnAddonMessage(arg1, arg2, arg3, arg4)
+    GuildRoll:RegisterEvent("CHAT_MSG_ADDON", function(self, prefix, message, channel, sender)
+      OnAddonMessage(prefix, message, channel, sender)
     end)
   end)
 end
