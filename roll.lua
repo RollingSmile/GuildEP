@@ -361,25 +361,6 @@ local function CreateRollButton(name, parent, command, anchor, width, font, isAd
         pcall(function() button:GetFontString():SetFont("Fonts\\FRIZQT__.TTF", 10) end)
     end
     
-    -- Add turquoise/cyan color for special buttons: CSR, SR, EP(MS)
-    if name == "CSR" or name == "SR" or name == "EP(MS)" then
-        pcall(function()
-            -- Set all button textures to turquoise/cyan for consistent color
-            local normalTexture = button:GetNormalTexture()
-            if normalTexture then
-                normalTexture:SetVertexColor(0.2, 0.9, 0.9, 1.0)
-            end
-            local highlightTexture = button:GetHighlightTexture()
-            if highlightTexture then
-                highlightTexture:SetVertexColor(0.3, 1.0, 1.0, 1.0)
-            end
-            local pushedTexture = button:GetPushedTexture()
-            if pushedTexture then
-                pushedTexture:SetVertexColor(0.1, 0.7, 0.7, 1.0)
-            end
-        end)
-    end
-    
     button:SetScript("OnClick", function()
         if isAdminCommand then
             ExecuteAdminCommand(command)
