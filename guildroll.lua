@@ -1843,13 +1843,13 @@ function GuildRoll:give_ep_to_member(getname,ep,block) -- awards ep to a single 
   -- Add AdminLog and personal log entries with alt tag if alt-pooling was applied
   if alt then
     -- Alt-pooling was applied: add tagged AdminLog and personal logs
-    local altStripped = string.gsub(alt, "%-.*$", "")
-    local mainStripped = string.gsub(getname, "%-.*$", "")
+    local altStripped = self:StripRealm(alt)
+    local mainStripped = self:StripRealm(getname)
     
     -- AdminLog entry: "[GIVE] %d EP given to %s (%s) by %s"
     if self.AdminLogAdd then
       pcall(function()
-        local adminLogText = string.format("[GIVE] %d EP given to %s (%s) by %s", ep, mainStripped, altStripped, adminName or "Unknown")
+        local adminLogText = string.format("[GIVE] %d EP given to %s (%s) by %s", ep, mainStripped, altStripped, adminName)
         self:AdminLogAdd(adminLogText)
       end)
     end
@@ -1909,10 +1909,9 @@ function GuildRoll:decay_ep_v3()
   self:addToLog(msg)
   
   -- Add single AdminLog summary entry for decay
-  local adminName = UnitName("player") or "Unknown"
   if self.AdminLogAdd then
     pcall(function()
-      local adminLogText = string.format("[DECAY] Applied %.0f%% decay to %d members by %s", decayPercent, memberCount, adminName)
+      local adminLogText = string.format("[DECAY] Applied %.0f%% decay to %d members by %s", decayPercent, memberCount, self:GetAdminName())
       self:AdminLogAdd(adminLogText)
     end)
   end
@@ -1943,10 +1942,9 @@ function GuildRoll:reset_ep_v3()
     self:addToLog(msg)
     
     -- Add single AdminLog summary entry for reset
-    local adminName = UnitName("player") or "Unknown"
     if self.AdminLogAdd then
       pcall(function()
-        local adminLogText = string.format("[RESET] Standing reset by %s", adminName)
+        local adminLogText = string.format("[RESET] Standing reset by %s", self:GetAdminName())
         self:AdminLogAdd(adminLogText)
       end)
     end

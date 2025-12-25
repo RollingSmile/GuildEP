@@ -129,3 +129,15 @@ function GuildRoll:TFind(tbl, item)
   end
   return nil
 end
+
+-- String utility: Strip realm/server suffix from player name
+-- Example: "PlayerName-RealmName" -> "PlayerName"
+function GuildRoll:StripRealm(name)
+  if not name then return nil end
+  return string.gsub(name, "%-[^%-]+$", "")
+end
+
+-- Player utility: Get current player's name with fallback
+function GuildRoll:GetAdminName()
+  return UnitName("player") or "Unknown"
+end
