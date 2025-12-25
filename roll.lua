@@ -360,6 +360,7 @@ local function CreateRollButton(name, parent, command, anchor, width, font, isAd
     if font then
         pcall(function() button:GetFontString():SetFont("Fonts\\FRIZQT__.TTF", 10) end)
     end
+    
     button:SetScript("OnClick", function()
         if isAdminCommand then
             ExecuteAdminCommand(command)
@@ -379,9 +380,11 @@ local function BuildRollOptions()
     
     -- Check if player is an admin or showAllRollButtons is enabled
     local isAdmin = (GuildRoll and GuildRoll.IsAdmin) and GuildRoll:IsAdmin() or false
-    if isAdmin or (GuildRoll_showAllRollButtons == true) then
-        -- show full set: CSR if permitted, SR, EP(MS), 101/100/99/98, Standings
-        if PlayerHasCSRPermission() then
+    local showAll = GuildRoll_showAllRollButtons == true
+    
+    if isAdmin or showAll then
+        -- show full set: CSR (always when showAll, or if permitted), SR, EP(MS), 101/100/99/98, Standings
+        if showAll or PlayerHasCSRPermission() then
             table.insert(opts, { "CSR", "roll csr" })
         end
         table.insert(opts, { "SR", "roll sr" })
