@@ -215,7 +215,7 @@ local function serializeEntry(entry)
   if entry.raid_details then
     local rd = entry.raid_details
     -- Format: RAID|ep|player_count|player1:old:new:alt,player2:old:new:alt,...
-    -- alt field contains the alt character name that triggered this main's award (empty/omitted if direct award or legacy entry)
+    -- alt field contains the alt character name that triggered this main's award (may be empty string for direct awards or legacy entries)
     local playerList = {}
     for i = 1, table.getn(rd.players or {}) do
       local player = rd.players[i]
@@ -288,7 +288,7 @@ local function deserializeEntry(data)
     local alt_sources = {}
     
     -- Parse player list: player1:old:new:alt,player2:old:new:alt,...
-    -- alt field contains the alt character name that triggered this main's award (empty/omitted if direct award or legacy entry)
+    -- alt field contains the alt character name that triggered this main's award (may be empty string for direct awards or legacy entries)
     if playersStr ~= "" then
       local playerEntries = {}
       local currentEntry = ""
@@ -807,7 +807,8 @@ function GuildRoll:AdminLogAddRaid(ep, raid_data)
     raid_details = {
       ep = ep,
       players = raid_data.players,
-      counts = raid_data.counts
+      counts = raid_data.counts,
+      alt_sources = raid_data.alt_sources
     }
   }
   
