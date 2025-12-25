@@ -1492,6 +1492,31 @@ function GuildRoll:refreshPRTablets()
  
 end
 
+-- Helper function to perform immediate UI refresh after EP-affecting actions
+-- Refreshes standings, AdminLog, personal logs, and requests guild roster update
+function GuildRoll:refreshAllEPUI()
+  pcall(function() self:refreshPRTablets() end)
+  if T then
+    pcall(function()
+      if T.IsRegistered and T:IsRegistered("GuildRoll_AdminLog") then
+        T:Refresh("GuildRoll_AdminLog")
+      end
+    end)
+    pcall(function()
+      if T.IsRegistered and T:IsRegistered("GuildRoll_personal_logs") then
+        T:Refresh("GuildRoll_personal_logs")
+      end
+    end)
+    pcall(function()
+      if T.IsRegistered and T:IsRegistered("GuildRoll_standings") then
+        T:Refresh("GuildRoll_standings")
+      end
+    end)
+  end
+  -- Call GuildRoster() to request roster update from server
+  pcall(function() GuildRoster() end)
+end
+
 ---------------------
 -- Standing Operations
 ---------------------
@@ -1593,27 +1618,7 @@ function GuildRoll:give_ep_to_raid(ep) -- awards ep to raid members in zone
     self:simpleSay(string.format(L["Giving %d MainStanding to all raidmembers"],ep))
     
     -- Immediate UI refresh after raid award
-    pcall(function() self:refreshPRTablets() end)
-    if T then
-      pcall(function()
-        if T.IsRegistered and T:IsRegistered("GuildRoll_AdminLog") then
-          T:Refresh("GuildRoll_AdminLog")
-        end
-      end)
-      pcall(function()
-        if T.IsRegistered and T:IsRegistered("GuildRoll_personal_logs") then
-          T:Refresh("GuildRoll_personal_logs")
-        end
-      end)
-      pcall(function()
-        if T.IsRegistered and T:IsRegistered("GuildRoll_standings") then
-          T:Refresh("GuildRoll_standings")
-        end
-      end)
-    end
-    
-    -- Call GuildRoster() to request roster update from server (existing behavior)
-    pcall(function() GuildRoster() end) 
+    self:refreshAllEPUI()
   else UIErrorsFrame:AddMessage(L["You aren't in a raid dummy"],1,0,0)end
 end
 
@@ -1875,27 +1880,7 @@ function GuildRoll:give_ep_to_member(getname,ep,block) -- awards ep to a single 
   end
   
   -- Immediate UI refresh
-  pcall(function() self:refreshPRTablets() end)
-  if T then
-    pcall(function()
-      if T.IsRegistered and T:IsRegistered("GuildRoll_AdminLog") then
-        T:Refresh("GuildRoll_AdminLog")
-      end
-    end)
-    pcall(function()
-      if T.IsRegistered and T:IsRegistered("GuildRoll_personal_logs") then
-        T:Refresh("GuildRoll_personal_logs")
-      end
-    end)
-    pcall(function()
-      if T.IsRegistered and T:IsRegistered("GuildRoll_standings") then
-        T:Refresh("GuildRoll_standings")
-      end
-    end)
-  end
-  
-  -- Call GuildRoster() to request roster update from server (existing behavior)
-  pcall(function() GuildRoster() end)
+  self:refreshAllEPUI()
   
   return false, getname
 end
@@ -1941,22 +1926,7 @@ function GuildRoll:decay_ep_v3()
   end
   
   -- Immediate UI refresh after decay
-  pcall(function() self:refreshPRTablets() end)
-  if T then
-    pcall(function()
-      if T.IsRegistered and T:IsRegistered("GuildRoll_AdminLog") then
-        T:Refresh("GuildRoll_AdminLog")
-      end
-    end)
-    pcall(function()
-      if T.IsRegistered and T:IsRegistered("GuildRoll_standings") then
-        T:Refresh("GuildRoll_standings")
-      end
-    end)
-  end
-  
-  -- Call GuildRoster() to request roster update from server (existing behavior)
-  pcall(function() GuildRoster() end)
+  self:refreshAllEPUI()
 end
 
 -- Backward-compatible wrapper for decay_epgp_v3
@@ -1990,22 +1960,7 @@ function GuildRoll:reset_ep_v3()
     end
     
     -- Immediate UI refresh after reset
-    pcall(function() self:refreshPRTablets() end)
-    if T then
-      pcall(function()
-        if T.IsRegistered and T:IsRegistered("GuildRoll_AdminLog") then
-          T:Refresh("GuildRoll_AdminLog")
-        end
-      end)
-      pcall(function()
-        if T.IsRegistered and T:IsRegistered("GuildRoll_standings") then
-          T:Refresh("GuildRoll_standings")
-        end
-      end)
-    end
-    
-    -- Call GuildRoster() to request roster update from server (existing behavior)
-    pcall(function() GuildRoster() end)
+    self:refreshAllEPUI()
   end
 end
 
