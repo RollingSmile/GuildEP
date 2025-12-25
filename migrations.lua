@@ -4,15 +4,13 @@ function GuildRoll:v2tov3()
   for i = 1, GetNumGuildMembers(1) do
     local name, _, _, _, class, _, note, officernote, _, _ = GetGuildRosterInfo(i)
     local epv2 = GuildRoll:get_ep_v2(name,note)
-    local gpv2 = GuildRoll:get_gp_v2(name,officernote)
     local epv3 = GuildRoll:get_ep_v3(name,officernote)
-    local gpv3 = GuildRoll:get_gp_v3(name,officernote)
-    if (epv3 and gpv3) then
+    if epv3 then
       -- do nothing, we've migrated already
-    elseif (epv2 and gpv2) and (epv2 > 0 and gpv2 >= GuildRoll.VARS.baseAE) then
+    elseif epv2 and epv2 > 0 then
       count = count + 1
-      -- self:defaultPrint(string.format("MainStandingv2:%s,gpv2:%s,i:%s,n:%s,o:%s",epv2,gpv2,i,name,officernote))
-      GuildRoll:update_epgp_v3(epv2,gpv2,i,name,officernote)
+      -- Migrate EP only (ignore GP)
+      GuildRoll:update_epgp_v3(epv2,nil,i,name,officernote)
     end
   end
   self:defaultPrint(string.format(L["Updated %d members to v3 storage."],count))
