@@ -203,12 +203,14 @@ local function serializeEntry(entry)
   -- If this is a raid entry, append raid_details
   if entry.raid_details then
     local rd = entry.raid_details
-    -- Format: RAID|ep|player_count|player1:old:new,player2:old:new,...
+    -- Format: RAID|ep|player_count|player1:old:new:alt,player2:old:new:alt,...
+    -- alt is optional (empty string if no alt)
     local playerList = {}
     for i = 1, table.getn(rd.players or {}) do
       local player = rd.players[i]
       local counts = rd.counts[player] or {old=0, new=0}
-      table.insert(playerList, string.format("%s:%d:%d", player, counts.old, counts.new))
+      local alt = (rd.alt_sources and rd.alt_sources[player]) or ""
+      table.insert(playerList, string.format("%s:%d:%d:%s", player, counts.old, counts.new, alt))
     end
     local playersStr = table.concat(playerList, ",")
     -- Escape pipes in player data
@@ -268,8 +270,10 @@ local function deserializeEntry(data)
     
     local players = {}
     local counts = {}
+    local alt_sources = {}
     
-    -- Parse player list: player1:old:new,player2:old:new,...
+    -- Parse player list: player1:old:new:alt,player2:old:new:alt,...
+    -- The alt field is optional for backward compatibility
     if playersStr ~= "" then
       local playerEntries = {}
       local currentEntry = ""
@@ -308,8 +312,12 @@ local function deserializeEntry(data)
           local playerName = pParts[1]
           local oldEP = tonumber(pParts[2]) or 0
           local newEP = tonumber(pParts[3]) or 0
+          local altName = pParts[4] or ""  -- Optional alt field
           table.insert(players, playerName)
           counts[playerName] = {old = oldEP, new = newEP}
+          if altName ~= "" then
+            alt_sources[playerName] = altName
+          end
         end
       end
     end
@@ -317,7 +325,8 @@ local function deserializeEntry(data)
     entry.raid_details = {
       ep = ep,
       players = players,
-      counts = counts
+      counts = counts,
+      alt_sources = alt_sources
     }
   end
   
@@ -1183,6 +1192,7 @@ function GuildRoll_AdminLog:OnTooltipUpdate()
             local player = entry.raid_details.players[j]
             local counts = entry.raid_details.counts[player] or {old=0, new=0}
             local delta = counts.new - counts.old
+            local alt_source = entry.raid_details.alt_sources and entry.raid_details.alt_sources[player]
             
             -- Colorize delta: green for positive/zero, red for negative
             local deltaColored
@@ -1192,8 +1202,20 @@ function GuildRoll_AdminLog:OnTooltipUpdate()
               deltaColored = C:Red(string.format("(%d)", delta))
             end
             
+            -- Build display string based on whether this was alt-pooled
+            local displayText
+            if alt_source and alt_source ~= "" then
+              -- Alt-pooled: show "MainName (AltName's main) — Prev: X, New: Y (+Z)"
+              displayText = string.format("  %s (%s's main) — Prev: %d, New: %d %s", 
+                player, alt_source, counts.old, counts.new, deltaColored)
+            else
+              -- Normal: show "PlayerName — Prev: X, New: Y (+Z)"
+              displayText = string.format("  %s — Prev: %d, New: %d %s", 
+                player, counts.old, counts.new, deltaColored)
+            end
+            
             subcat:AddLine(
-              "text", string.format("  %s — Prev: %d, New: %d %s", player, counts.old, counts.new, deltaColored)
+              "text", displayText
             )
           end
         end

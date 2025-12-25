@@ -1511,7 +1511,8 @@ function GuildRoll:give_ep_to_raid(ep) -- awards ep to raid members in zone
     local adminName = UnitName("player")
     local raid_data = {
       players = {},
-      counts = {}
+      counts = {},
+      alt_sources = {}  -- Track which alt triggered the award (if any)
     }
     
     for i = 1, GetNumRaidMembers(true) do
@@ -1520,6 +1521,7 @@ function GuildRoll:give_ep_to_raid(ep) -- awards ep to raid members in zone
         local actualName = name
         local actualEP = ep
         local postfix = ""
+        local sourceAlt = nil  -- Track if this award came from an alt
         
         -- Handle alt -> main mapping if Altspool enabled
         if (GuildRollAltspool) then
@@ -1529,6 +1531,7 @@ function GuildRoll:give_ep_to_raid(ep) -- awards ep to raid members in zone
             actualName = main
             actualEP = self:num_round(GuildRoll_altpercent*ep)
             postfix = string.format(L[", %s\'s Main."],alt)
+            sourceAlt = alt  -- Remember the alt that triggered this award
           end
         end
         
@@ -1554,6 +1557,9 @@ function GuildRoll:give_ep_to_raid(ep) -- awards ep to raid members in zone
           -- Add player to raid_data for consolidated log entry
           table.insert(raid_data.players, actualName)
           raid_data.counts[actualName] = {old = old, new = newep}
+          if sourceAlt then
+            raid_data.alt_sources[actualName] = sourceAlt
+          end
           
           table.insert(award, actualName)
         end
