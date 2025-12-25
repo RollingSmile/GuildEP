@@ -352,8 +352,8 @@ local function applyAdminLogEntry(entry)
     table.insert(GuildRoll_adminLogOrder, entry.id)
   end
   
-  -- Trim order array to last 500 entries
-  local maxEntries = 500
+  -- Trim order array to last 400 entries
+  local maxEntries = 400
   if table.getn(GuildRoll_adminLogOrder) > maxEntries then
     local toRemove = table.getn(GuildRoll_adminLogOrder) - maxEntries
     for i = 1, toRemove do
