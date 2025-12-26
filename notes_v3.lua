@@ -11,32 +11,21 @@ local string_format = string and string.format
 local string_len = string and string.len
 local string_sub = string and string.sub
 
--- Track if we've shown the corruption warning
-local _corruption_warning_shown = false
+-- Verify we have the required string functions
+-- If not, we'll show a one-time warning but continue (may cause issues)
+local _missing_functions = {}
+if not string_match then table.insert(_missing_functions, "string.match") end
+if not string_gsub then table.insert(_missing_functions, "string.gsub") end
+if not string_format then table.insert(_missing_functions, "string.format") end
 
--- Emergency validation: If string functions are nil at load time, log once and use globals
--- The global protection in guildroll.lua should restore these functions at runtime
-if not string_match or not string_gsub or not string_format or not string_find or not string_len or not string_sub then
-  -- Show warning only once
-  if not _corruption_warning_shown then
-    _corruption_warning_shown = true
-    -- Schedule warning to show after UI is ready
-    local f = CreateFrame("Frame")
-    f:RegisterEvent("PLAYER_LOGIN")
-    f:SetScript("OnEvent", function()
-      DEFAULT_CHAT_FRAME:AddMessage("|cffff9900GuildRoll Warning: String functions were corrupted at load time. Another addon may be interfering. If you experience issues, disable other addons.|r")
-      f:UnregisterEvent("PLAYER_LOGIN")
-    end)
-  end
-  
-  -- Use global references as fallback (they should be restored by guildroll.lua protection)
-  string_match = string_match or function(...) return string.match(...) end
-  string_gmatch = string_gmatch or function(...) return string.gmatch(...) end
-  string_gsub = string_gsub or function(...) return string.gsub(...) end
-  string_find = string_find or function(...) return string.find(...) end
-  string_format = string_format or function(...) return string.format(...) end
-  string_len = string_len or function(...) return string.len(...) end
-  string_sub = string_sub or function(...) return string.sub(...) end
+if table.getn(_missing_functions) > 0 then
+  -- Show warning only once on login
+  local f = CreateFrame("Frame")
+  f:RegisterEvent("PLAYER_LOGIN")
+  f:SetScript("OnEvent", function()
+    DEFAULT_CHAT_FRAME:AddMessage("|cffff9900GuildRoll Warning: Some string functions are missing at load time (" .. table.concat(_missing_functions, ", ") .. "). Another addon may be interfering. Please report this issue with your addon list.|r")
+    f:UnregisterEvent("PLAYER_LOGIN")
+  end)
 end
 
 -- Constants for note length and migration timing

@@ -3,57 +3,6 @@ GuildRoll:SetModuleMixins("AceDebug-2.0")
 
 -- Global debug flag: set to true to enable debug output
 GuildRoll.DEBUG = false
-
--- Defensive: Protect string table functions from being overwritten by other addons
--- Store local references to critical string functions before any addon can corrupt them
-do
-  -- Store references only if they're valid functions
-  local _string_match = (type(string.match) == "function") and string.match or nil
-  local _string_gmatch = (type(string.gmatch) == "function") and string.gmatch or nil
-  local _string_gsub = (type(string.gsub) == "function") and string.gsub or nil
-  local _string_find = (type(string.find) == "function") and string.find or nil
-  local _string_format = (type(string.format) == "function") and string.format or nil
-  
-  -- If we couldn't capture valid references, something is very wrong - try to get from raw Lua
-  if not _string_match then
-    -- Emergency fallback: these functions should exist in base Lua
-    -- If they don't, we log an error but continue
-    if GuildRoll_debug then
-      DEFAULT_CHAT_FRAME:AddMessage("|cffff0000GuildRoll: CRITICAL - string.match not found at load time!|r")
-    end
-  end
-  
-  -- If string functions are corrupted, restore them from our local copies
-  local function _protect_string_table()
-    if _string_match and (not string.match or type(string.match) ~= "function") then
-      string.match = _string_match
-    end
-    if _string_gmatch and (not string.gmatch or type(string.gmatch) ~= "function") then
-      string.gmatch = _string_gmatch
-    end
-    if _string_gsub and (not string.gsub or type(string.gsub) ~= "function") then
-      string.gsub = _string_gsub
-    end
-    if _string_find and (not string.find or type(string.find) ~= "function") then
-      string.find = _string_find
-    end
-    if _string_format and (not string.format or type(string.format) ~= "function") then
-      string.format = _string_format
-    end
-  end
-  
-  -- Call protection immediately
-  _protect_string_table()
-  
-  -- Also protect on events (in case corruption happens later)
-  local f = CreateFrame("Frame")
-  f:RegisterEvent("PLAYER_LOGIN")
-  f:RegisterEvent("PLAYER_ENTERING_WORLD")
-  f:SetScript("OnEvent", function()
-    _protect_string_table()
-  end)
-end
-
 local D = AceLibrary("Dewdrop-2.0")-- Standings table
 local BZ = AceLibrary("Babble-Zone-2.2")
 local C = AceLibrary("Crayon-2.0") -- chat color
