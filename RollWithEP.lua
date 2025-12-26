@@ -118,23 +118,35 @@ local function IsRaidLeader()
 end
 
 -- Helper: Check if local player can use RollWithEP
--- Permission: RAID + Admin + (Master Looter OR Raid Leader when no ML)
--- Delegated to GuildRoll:CanManageRolls() with raid presence pre-check
+-- Permission: RAID + Admin + Master Loot method + (Master Looter OR Raid Leader when no ML)
 local function CanUseRollWithEP()
-  if not GuildRoll or not GuildRoll.CanManageRolls then
+  if not GuildRoll then
     return false
   end
   
-  -- Pre-check: Must be in a raid (not party, not solo)
+  -- Pre-check 1: Must be in a raid (not party, not solo)
   local ok, numRaidMembers = pcall(GetNumRaidMembers)
   if not ok or not numRaidMembers or numRaidMembers == 0 then
     return false
   end
   
-  -- Delegate remaining checks to CanManageRolls (Admin + ML/RL)
-  local ok2, canManage, reason = pcall(function() return GuildRoll:CanManageRolls() end)
-  if ok2 and canManage then
-    return true
+  -- Pre-check 2: Loot method must be Master Loot
+  local lootMethod, mlPartyIndex, mlRaidIndex = GetLootMethod()
+  if lootMethod ~= "master" then
+    return false  -- Must be master loot
+  end
+  
+  -- Pre-check 3: Must be Admin
+  if not GuildRoll.IsAdmin or not GuildRoll:IsAdmin() then
+    return false
+  end
+  
+  -- Delegate remaining checks to CanManageRolls (ML/RL validation)
+  if GuildRoll.CanManageRolls then
+    local ok2, canManage, reason = pcall(function() return GuildRoll:CanManageRolls() end)
+    if ok2 and canManage then
+      return true
+    end
   end
   
   return false
