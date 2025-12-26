@@ -212,6 +212,7 @@ end
 -- LOOT_OPENED event handler
 -- Announces loot when permitted player opens a corpse/container
 -- Integration: Also opens RollWithEP UI if available (new module)
+-- Only announces items with rarity >= 2 (uncommon/green or better)
 local function OnLootOpened()
   -- Check permission
   if not IsAdminAndMLOrRLWhenNoML() then
@@ -231,6 +232,46 @@ local function OnLootOpened()
     channel = "RAID"
   end
   
+  -- First pass: Check if there are any qualifying items (rarity >= 2)
+  local hasQualifyingLoot = false
+  local lootItems = {}
+  
+  for slot = 1, numSlots do
+    local ok, lootIcon, lootName, lootQuantity, rarity = pcall(GetLootSlotInfo, slot)
+    if ok and lootName and rarity then
+      -- Filter: Only include items with rarity >= 2 (uncommon or better)
+      -- rarity values: 0=Poor (gray), 1=Common (white), 2=Uncommon (green), 3=Rare (blue), 4=Epic (purple), 5=Legendary (orange)
+      if rarity >= 2 then
+        hasQualifyingLoot = true
+        
+        -- Get item link
+        local success, itemLink = pcall(GetLootSlotLink, slot)
+        if success and itemLink then
+          -- Extract itemID from link
+          local itemID = nil
+          local idMatch = string.match(itemLink, "item:(%d+)")
+          if idMatch then
+            itemID = tonumber(idMatch)
+          end
+          
+          -- Store loot item for RollWithEP
+          table.insert(lootItems, {
+            slot = slot,
+            itemLink = itemLink,
+            itemID = itemID,
+            itemName = lootName,
+            rarity = rarity
+          })
+        end
+      end
+    end
+  end
+  
+  -- Only announce if there are qualifying items
+  if not hasQualifyingLoot or table.getn(lootItems) == 0 then
+    return
+  end
+  
   -- Announce first line
   local ok = pcall(function()
     SendChatMessage("Loot found:", channel)
@@ -240,70 +281,52 @@ local function OnLootOpened()
     return
   end
   
-  -- Announce each loot slot and collect loot data for RollWithEP
-  local lootItems = {}
-  for slot = 1, numSlots do
-    local ok, lootIcon, lootName, lootQuantity, rarity = pcall(GetLootSlotInfo, slot)
-    if ok and lootName then
-      -- Get item link
-      local success, itemLink = pcall(GetLootSlotLink, slot)
-      if success and itemLink then
-        -- Extract itemID from link
-        local itemID = nil
-        local idMatch = string.match(itemLink, "item:(%d+)")
-        if idMatch then
-          itemID = tonumber(idMatch)
-        end
-        
-        -- Store loot item for RollWithEP
-        table.insert(lootItems, {
-          slot = slot,
-          itemLink = itemLink,
-          itemID = itemID,
-          itemName = lootName
-        })
-        
-        -- Get SR list for this item
-        local srlist = GetSRListForItem(itemID, lootName)
-        
-        -- Format message
-        local message = itemLink
-        
-        if srlist and table.getn(srlist) > 0 then
-          -- Build detailed SR/CSR info
-          local srInfo = {}
-          for _, playerName in ipairs(srlist) do
-            local srType = GetSRType(itemID, lootName, playerName)
-            table.insert(srInfo, playerName .. " (" .. srType .. ")")
-          end
-          
-          -- Limit to 7 names
-          local count = table.getn(srInfo)
-          local maxShow = 7
-          local displayInfo = {}
-          
-          for i = 1, math.min(count, maxShow) do
-            table.insert(displayInfo, srInfo[i])
-          end
-          
-          message = message .. " " .. table.concat(displayInfo, ", ")
-          
-          if count > maxShow then
-            message = message .. " +" .. (count - maxShow) .. " more"
-          end
-        end
-        
-        -- Send message
-        pcall(function()
-          SendChatMessage(message, channel)
-        end)
+  -- Announce each qualifying loot item
+  for _, lootData in ipairs(lootItems) do
+    local itemLink = lootData.itemLink
+    local itemID = lootData.itemID
+    local itemName = lootData.itemName
+    
+    -- Get SR list for this item
+    local srlist = GetSRListForItem(itemID, itemName)
+    
+    -- Format message
+    local message = itemLink
+    
+    if srlist and table.getn(srlist) > 0 then
+      -- Build detailed SR/CSR info
+      local srInfo = {}
+      for _, playerName in ipairs(srlist) do
+        local srType = GetSRType(itemID, itemName, playerName)
+        table.insert(srInfo, playerName .. " (" .. srType .. ")")
+      end
+      
+      -- Limit to 7 names
+      local count = table.getn(srInfo)
+      local maxShow = 7
+      local displayInfo = {}
+      
+      for i = 1, math.min(count, maxShow) do
+        table.insert(displayInfo, srInfo[i])
+      end
+      
+      message = message .. " " .. table.concat(displayInfo, ", ")
+      
+      if count > maxShow then
+        message = message .. " +" .. (count - maxShow) .. " more"
       end
     end
+    
+    -- Send message
+    pcall(function()
+      SendChatMessage(message, channel)
+    end)
   end
   
   -- Integration point: Open RollWithEP UI if module is loaded
   -- The RollWithEP module provides interactive roll management UI
-  if GuildRoll and GuildRoll.RollWithEP_ShowLootUI then
+  -- Only call if there are qualifying items
+  if table.getn(lootItems) > 0 and GuildRoll and GuildRoll.RollWithEP_ShowLootUI then
     pcall(function()
       GuildRoll.RollWithEP_ShowLootUI(lootItems)
     end)
