@@ -2,13 +2,34 @@
 -- Contains functions for managing officer notes in {EP} format and migration utilities
 
 -- Defensive: Store local references to string functions to protect against corruption
-local string_match = string.match
-local string_gmatch = string.gmatch
-local string_gsub = string.gsub
-local string_find = string.find
-local string_format = string.format
-local string_len = string.len
-local string_sub = string.sub
+-- These must be captured at file load time before any corruption occurs
+local string_match = string and string.match
+local string_gmatch = string and string.gmatch
+local string_gsub = string and string.gsub
+local string_find = string and string.find
+local string_format = string and string.format
+local string_len = string and string.len
+local string_sub = string and string.sub
+
+-- Emergency validation: If string functions are nil at load time, create error messages
+if not string_match then
+  string_match = function() error("GuildRoll: string.match was corrupted before notes_v3.lua loaded. Please disable other addons to find the conflict.") end
+end
+if not string_gsub then
+  string_gsub = function() error("GuildRoll: string.gsub was corrupted before notes_v3.lua loaded. Please disable other addons to find the conflict.") end
+end
+if not string_format then
+  string_format = function() error("GuildRoll: string.format was corrupted before notes_v3.lua loaded. Please disable other addons to find the conflict.") end
+end
+if not string_find then
+  string_find = function() error("GuildRoll: string.find was corrupted before notes_v3.lua loaded. Please disable other addons to find the conflict.") end
+end
+if not string_len then
+  string_len = function() error("GuildRoll: string.len was corrupted before notes_v3.lua loaded. Please disable other addons to find the conflict.") end
+end
+if not string_sub then
+  string_sub = function() error("GuildRoll: string.sub was corrupted before notes_v3.lua loaded. Please disable other addons to find the conflict.") end
+end
 
 -- Constants for note length and migration timing
 local MAX_NOTE_LEN = 31
