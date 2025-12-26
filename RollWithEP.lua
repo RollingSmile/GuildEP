@@ -171,8 +171,8 @@ local function CanUseMenuFeatures()
     return false
   end
   
-  -- Must be Admin
-  if not GuildRoll.IsAdmin then
+  -- Must be Admin - check if IsAdmin function exists
+  if not GuildRoll.IsAdmin or type(GuildRoll.IsAdmin) ~= "function" then
     return false
   end
   
@@ -1399,8 +1399,21 @@ end
 -- ============================================================================
 
 -- Expose menu permission check (Admin + InRaid only)
-function GuildRoll.RollWithEP_CanUse()
-  return CanUseMenuFeatures()
+-- NOTE: This must be exposed early so guildroll.lua's buildMenu() can reference it
+if GuildRoll then
+  function GuildRoll.RollWithEP_CanUse()
+    local result = CanUseMenuFeatures()
+    -- Debug output (can be removed later)
+    if GuildRoll.defaultPrint and GuildRoll.DEBUG then
+      pcall(function()
+        local numRaid = GetNumRaidMembers()
+        local isAdmin = GuildRoll.IsAdmin and GuildRoll:IsAdmin() or false
+        GuildRoll:defaultPrint(string.format("RollWithEP_CanUse: result=%s, numRaid=%d, isAdmin=%s", 
+          tostring(result), numRaid or 0, tostring(isAdmin)))
+      end)
+    end
+    return result
+  end
 end
 
 -- Expose CSV import function (uses menu permissions)
