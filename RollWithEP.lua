@@ -137,7 +137,12 @@ local function CanUseRollWithEP()
   end
   
   -- Pre-check 3: Must be Admin
-  if not GuildRoll.IsAdmin or not GuildRoll:IsAdmin() then
+  if not GuildRoll.IsAdmin then
+    return false
+  end
+  
+  local ok, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
+  if not ok or not isAdmin then
     return false
   end
   
@@ -167,7 +172,12 @@ local function CanUseMenuFeatures()
   end
   
   -- Must be Admin
-  if not GuildRoll.IsAdmin or not GuildRoll:IsAdmin() then
+  if not GuildRoll.IsAdmin then
+    return false
+  end
+  
+  local ok, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
+  if not ok or not isAdmin then
     return false
   end
   
