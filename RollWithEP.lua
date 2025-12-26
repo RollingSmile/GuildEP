@@ -117,7 +117,7 @@ local function IsRaidLeader()
   return false
 end
 
--- Helper: Check if local player can use RollWithEP
+-- Helper: Check if local player can use RollWithEP MODULE features (roll tracking, etc.)
 -- Permission: RAID + Admin + Master Loot method + (Master Looter OR Raid Leader when no ML)
 local function CanUseRollWithEP()
   if not GuildRoll then
@@ -141,15 +141,37 @@ local function CanUseRollWithEP()
     return false
   end
   
-  -- Delegate remaining checks to CanManageRolls (ML/RL validation)
-  if GuildRoll.CanManageRolls then
-    local ok2, canManage, reason = pcall(function() return GuildRoll:CanManageRolls() end)
-    if ok2 and canManage then
-      return true
-    end
+  -- Pre-check 4: Must be Master Looter OR Raid Leader
+  local isMl = IsMasterLooter()
+  local isRl = IsRaidLeader()
+  
+  if not isMl and not isRl then
+    return false
   end
   
-  return false
+  return true
+end
+
+-- Helper: Check if can access MENU features (Import CSV, Set DE/Bank)
+-- Permission: Admin + InRaid only (no Master Loot requirement)
+-- This allows configuration even when not currently managing loot
+local function CanUseMenuFeatures()
+  if not GuildRoll then
+    return false
+  end
+  
+  -- Must be in a raid (not party, not solo)
+  local ok, numRaidMembers = pcall(GetNumRaidMembers)
+  if not ok or not numRaidMembers or numRaidMembers == 0 then
+    return false
+  end
+  
+  -- Must be Admin
+  if not GuildRoll.IsAdmin or not GuildRoll:IsAdmin() then
+    return false
+  end
+  
+  return true
 end
 
 -- Helper: Get SR data for an item
@@ -1366,14 +1388,14 @@ end
 -- Public API Exposure
 -- ============================================================================
 
--- Expose CanUseRollWithEP for menu permission gating
+-- Expose menu permission check (Admin + InRaid only)
 function GuildRoll.RollWithEP_CanUse()
-  return CanUseRollWithEP()
+  return CanUseMenuFeatures()
 end
 
--- Expose CSV import function
+-- Expose CSV import function (uses menu permissions)
 function GuildRoll.RollWithEP_ImportCSV(csvData)
-  if not CanUseRollWithEP() then
+  if not CanUseMenuFeatures() then
     if GuildRoll and GuildRoll.defaultPrint then
       GuildRoll:defaultPrint(L["You don't have permission to import CSV."])
     end
@@ -1464,9 +1486,9 @@ function GuildRoll.RollWithEP_ImportCSV(csvData)
   end
 end
 
--- Expose Set DE/Bank function
+-- Expose Set DE/Bank function (uses menu permissions)
 function GuildRoll.RollWithEP_SetDEBank(playerName)
-  if not CanUseRollWithEP() then
+  if not CanUseMenuFeatures() then
     if GuildRoll and GuildRoll.defaultPrint then
       GuildRoll:defaultPrint(L["You don't have permission to set DE/Bank player."])
     end
