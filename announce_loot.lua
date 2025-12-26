@@ -7,24 +7,6 @@ do
   if not ok or not L then return end
 end
 
--- Safe wrapper for string.match to prevent crashes from addon conflicts
--- If string.match is overwritten by another addon or shadowed locally, this prevents nil value errors
-local safe_match
-do
-  local string_match = string.match
-  if type(string_match) == "function" then
-    safe_match = string_match
-  else
-    -- Fallback: log debug message if string.match is unavailable
-    safe_match = function(...)
-      if GuildRoll_debug then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffff0000GuildRoll debug: string.match unavailable|r")
-      end
-      return nil
-    end
-  end
-end
-
 -- Helper: Strip realm suffix from player name
 local function StripRealm(name)
   if not name then return "" end
@@ -260,7 +242,7 @@ local function OnLootOpened()
       if success and itemLink then
         -- Extract itemID from link
         local itemID = nil
-        local idMatch = safe_match(itemLink, "item:(%d+)")
+        local idMatch = string.match(itemLink, "item:(%d+)")
         if idMatch then
           itemID = tonumber(idMatch)
         end
