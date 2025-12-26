@@ -1402,16 +1402,32 @@ end
 -- NOTE: This must be exposed early so guildroll.lua's buildMenu() can reference it
 if GuildRoll then
   function GuildRoll.RollWithEP_CanUse()
-    local result = CanUseMenuFeatures()
-    -- Debug output (can be removed later)
-    if GuildRoll.defaultPrint and GuildRoll.DEBUG then
+    -- Always print debug to help diagnose
+    local numRaid = 0
+    local isAdmin = false
+    local hasIsAdminFunc = false
+    
+    pcall(function()
+      numRaid = GetNumRaidMembers() or 0
+    end)
+    
+    if GuildRoll.IsAdmin and type(GuildRoll.IsAdmin) == "function" then
+      hasIsAdminFunc = true
       pcall(function()
-        local numRaid = GetNumRaidMembers()
-        local isAdmin = GuildRoll.IsAdmin and GuildRoll:IsAdmin() or false
-        GuildRoll:defaultPrint(string.format("RollWithEP_CanUse: result=%s, numRaid=%d, isAdmin=%s", 
-          tostring(result), numRaid or 0, tostring(isAdmin)))
+        isAdmin = GuildRoll:IsAdmin() or false
       end)
     end
+    
+    local result = CanUseMenuFeatures()
+    
+    -- Always print debug to console when menu opens
+    if GuildRoll.defaultPrint then
+      pcall(function()
+        GuildRoll:defaultPrint(string.format("[RollWithEP Debug] CanUse=%s | InRaid=%d | IsAdmin=%s | HasFunc=%s", 
+          tostring(result), numRaid, tostring(isAdmin), tostring(hasIsAdminFunc)))
+      end)
+    end
+    
     return result
   end
 end
