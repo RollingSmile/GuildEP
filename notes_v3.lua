@@ -24,13 +24,30 @@ if not string_match or not string_gsub or not string_format then
     end)
   end
   -- Create fallback wrappers that try to use the global (in case it gets restored later)
-  string_match = string_match or function(...) return string.match and string.match(...) or nil end
-  string_gmatch = string_gmatch or function(...) return string.gmatch and string.gmatch(...) or nil end
-  string_gsub = string_gsub or function(...) return string.gsub and string.gsub(...) or nil end
-  string_find = string_find or function(...) return string.find and string.find(...) or nil end
-  string_format = string_format or function(...) return string.format and string.format(...) or "" end
-  string_len = string_len or function(...) return string.len and string.len(...) or 0 end
-  string_sub = string_sub or function(...) return string.sub and string.sub(...) or "" end
+  string_match = string_match or function(s, pattern, init)
+    return string.match and string.match(s, pattern, init) or nil
+  end
+  string_gmatch = string_gmatch or function(s, pattern)
+    return string.gmatch and string.gmatch(s, pattern) or nil
+  end
+  string_gsub = string_gsub or function(s, pattern, repl, n)
+    return string.gsub and string.gsub(s, pattern, repl, n) or nil
+  end
+  string_find = string_find or function(s, pattern, init, plain)
+    return string.find and string.find(s, pattern, init, plain) or nil
+  end
+  string_format = string_format or function(formatstring, ...)
+    if string.format then
+      return string.format(formatstring, ...)
+    end
+    return ""
+  end
+  string_len = string_len or function(s)
+    return string.len and string.len(s) or 0
+  end
+  string_sub = string_sub or function(s, i, j)
+    return string.sub and string.sub(s, i, j) or ""
+  end
 end
 
 -- Constants for note length and migration timing
