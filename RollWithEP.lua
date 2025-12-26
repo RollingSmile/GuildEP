@@ -1364,14 +1364,14 @@ end
 function GuildRoll.RollWithEP_ImportCSV(csvData)
   if not CanUseRollWithEP() then
     if GuildRoll and GuildRoll.defaultPrint then
-      GuildRoll:defaultPrint("You don't have permission to import CSV.")
+      GuildRoll:defaultPrint(L["You don't have permission to import CSV."])
     end
     return false
   end
   
   if not csvData or csvData == "" then
     if GuildRoll and GuildRoll.defaultPrint then
-      GuildRoll:defaultPrint("No CSV data provided.")
+      GuildRoll:defaultPrint(L["No CSV data provided."])
     end
     return false
   end
@@ -1457,7 +1457,7 @@ end
 function GuildRoll.RollWithEP_SetDEBank(playerName)
   if not CanUseRollWithEP() then
     if GuildRoll and GuildRoll.defaultPrint then
-      GuildRoll:defaultPrint("You don't have permission to set DE/Bank player.")
+      GuildRoll:defaultPrint(L["You don't have permission to set DE/Bank player."])
     end
     return
   end

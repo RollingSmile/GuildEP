@@ -268,7 +268,7 @@ local function OnLootOpened()
   end
   
   -- Only announce if there are qualifying items
-  if not hasQualifyingLoot or table.getn(lootItems) == 0 then
+  if table.getn(lootItems) == 0 then
     return
   end
   
