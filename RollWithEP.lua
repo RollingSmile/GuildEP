@@ -28,12 +28,9 @@ end
 -- RollWithEP-specific strings should be added to localization.lua instead
 -- For now, we just use the existing locale instance without registering new translations
 
--- Initialize saved variable for DE/Bank persistence
-if not GuildRoll.VARS then
-  GuildRoll.VARS = {}
-end
-GuildRoll.VARS.lootDE = GuildRoll.VARS.lootDE or nil
-GuildRoll.VARS.lootDE_ML = GuildRoll.VARS.lootDE_ML or nil
+-- Wait for GuildRoll table to be initialized before accessing it
+-- GuildRoll is created in guildroll.lua which loads after this file
+-- We'll initialize VARS in the functions that need them instead of at load time
 
 -- Constants - reuse PRIORITY_MAP from RollForEP concept
 local PRIORITY_MAP = {
@@ -117,27 +114,71 @@ local function IsRaidLeader()
   return false
 end
 
--- Helper: Check if local player can use RollWithEP
--- Permission: RAID + Admin + (Master Looter OR Raid Leader when no ML)
--- Delegated to GuildRoll:CanManageRolls() with raid presence pre-check
+-- Helper: Check if local player can use RollWithEP MODULE features (roll tracking, etc.)
+-- Permission: RAID + Admin + Master Loot method + (Master Looter OR Raid Leader when no ML)
 local function CanUseRollWithEP()
-  if not GuildRoll or not GuildRoll.CanManageRolls then
+  if not GuildRoll then
     return false
   end
   
-  -- Pre-check: Must be in a raid (not party, not solo)
+  -- Pre-check 1: Must be in a raid (not party, not solo)
   local ok, numRaidMembers = pcall(GetNumRaidMembers)
   if not ok or not numRaidMembers or numRaidMembers == 0 then
     return false
   end
   
-  -- Delegate remaining checks to CanManageRolls (Admin + ML/RL)
-  local ok2, canManage, reason = pcall(function() return GuildRoll:CanManageRolls() end)
-  if ok2 and canManage then
-    return true
+  -- Pre-check 2: Loot method must be Master Loot
+  local lootMethod, mlPartyIndex, mlRaidIndex = GetLootMethod()
+  if lootMethod ~= "master" then
+    return false  -- Must be master loot
   end
   
-  return false
+  -- Pre-check 3: Must be Admin
+  if not GuildRoll.IsAdmin then
+    return false
+  end
+  
+  local ok, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
+  if not ok or not isAdmin then
+    return false
+  end
+  
+  -- Pre-check 4: Must be Master Looter OR Raid Leader
+  local isMl = IsMasterLooter()
+  local isRl = IsRaidLeader()
+  
+  if not isMl and not isRl then
+    return false
+  end
+  
+  return true
+end
+
+-- Helper: Check if can access MENU features (Import CSV, Set DE/Bank)
+-- Permission: Admin + InRaid only (no Master Loot requirement)
+-- This allows configuration even when not currently managing loot
+local function CanUseMenuFeatures()
+  if not GuildRoll then
+    return false
+  end
+  
+  -- Must be in a raid (not party, not solo)
+  local ok, numRaidMembers = pcall(GetNumRaidMembers)
+  if not ok or not numRaidMembers or numRaidMembers == 0 then
+    return false
+  end
+  
+  -- Must be Admin - check if IsAdmin function exists
+  if not GuildRoll.IsAdmin or type(GuildRoll.IsAdmin) ~= "function" then
+    return false
+  end
+  
+  local ok, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
+  if not ok or not isAdmin then
+    return false
+  end
+  
+  return true
 end
 
 -- Helper: Get SR data for an item
@@ -990,6 +1031,11 @@ function RollWithEP_GiveToDE()
     return
   end
   
+  -- Initialize VARS if needed
+  if not GuildRoll.VARS then
+    GuildRoll.VARS = {}
+  end
+  
   -- Check if DE player is set and still online
   local dePlayer = GuildRoll.VARS.lootDE
   local deML = GuildRoll.VARS.lootDE_ML
@@ -1202,9 +1248,13 @@ if GuildRoll then
   end)
 end
 
+-- Ensure GuildRoll table exists (since we load before guildroll.lua)
+if not GuildRoll then
+  GuildRoll = {}
+end
+
 -- Public API for integration
 GuildRoll.RollWithEP_StartRollForItem = RollWithEP_StartRollForItem
-GuildRoll.RollWithEP_CanUse = CanUseRollWithEP
 
 -- API: Show loot UI with item list
 -- Called by announce_loot.lua when loot window opens
@@ -1349,4 +1399,163 @@ function ShowItemContextMenu(itemLink, itemID, itemName, slotIndex)
       end
     )
   end)
+end
+
+-- ============================================================================
+-- Public API Exposure
+-- ============================================================================
+
+-- Expose menu permission check (Admin + InRaid only)
+-- NOTE: This must be exposed early so guildroll.lua's buildMenu() can reference it
+if GuildRoll then
+  function GuildRoll.RollWithEP_CanUse()
+    -- Always print debug to help diagnose
+    local numRaid = 0
+    local isAdmin = false
+    local hasIsAdminFunc = false
+    
+    pcall(function()
+      numRaid = GetNumRaidMembers() or 0
+    end)
+    
+    if GuildRoll.IsAdmin and type(GuildRoll.IsAdmin) == "function" then
+      hasIsAdminFunc = true
+      pcall(function()
+        isAdmin = GuildRoll:IsAdmin() or false
+      end)
+    end
+    
+    local result = CanUseMenuFeatures()
+    
+    -- Always print debug to console when menu opens
+    if GuildRoll.defaultPrint then
+      pcall(function()
+        GuildRoll:defaultPrint(string.format("[RollWithEP Debug] CanUse=%s | InRaid=%d | IsAdmin=%s | HasFunc=%s", 
+          tostring(result), numRaid, tostring(isAdmin), tostring(hasIsAdminFunc)))
+      end)
+    end
+    
+    return result
+  end
+end
+
+-- Expose CSV import function (uses menu permissions)
+function GuildRoll.RollWithEP_ImportCSV(csvData)
+  if not CanUseMenuFeatures() then
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(L["You don't have permission to import CSV."])
+    end
+    return false
+  end
+  
+  if not csvData or csvData == "" then
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(L["No CSV data provided."])
+    end
+    return false
+  end
+  
+  -- Initialize cache if needed
+  if not GuildRoll_rollForEPCache then
+    GuildRoll_rollForEPCache = {}
+  end
+  
+  -- Parse CSV data
+  local ok, result = pcall(function()
+    local srData = {}
+    local playerCount = 0
+    
+    -- Parse CSV line by line
+    for line in string.gmatch(csvData .. "\n", "(.-)\n") do
+      -- Skip empty lines and header
+      if line and line ~= "" and not string.find(line, "^Player,") then
+        -- Parse CSV line: Player,ItemID,ItemName,Week
+        local player, itemID, itemName, week = string.match(line, "^([^,]+),([^,]*),([^,]*),([^,]*)$")
+        
+        if player and player ~= "" then
+          -- Strip realm suffix
+          player = StripRealm(player)
+          
+          -- Initialize player if needed
+          if not srData[player] then
+            srData[player] = {
+              sr = 0,
+              weeks = {},
+              items = {}
+            }
+            playerCount = playerCount + 1
+          end
+          
+          -- Add item to player's SR list
+          local item = {
+            itemID = itemID and itemID ~= "" and tonumber(itemID) or nil,
+            itemName = itemName and itemName ~= "" and itemName or nil,
+            week = week and week ~= "" and tonumber(week) or nil
+          }
+          
+          table.insert(srData[player].items, item)
+          srData[player].sr = srData[player].sr + 1
+          
+          -- Track week if provided
+          if item.week and not srData[player].weeks[item.week] then
+            srData[player].weeks[item.week] = true
+          end
+        end
+      end
+    end
+    
+    -- Store in cache
+    GuildRoll_rollForEPCache.lastImport = {
+      srData = srData,
+      timestamp = time(),
+      playerCount = playerCount
+    }
+    
+    -- Also expose in RollForEP module if available
+    if RollForEP then
+      RollForEP.srData = srData
+    end
+    
+    return playerCount
+  end)
+  
+  if ok and result then
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(string.format(L["CSV imported successfully! %d players with soft reserves."], result))
+    end
+    return true
+  else
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(L["Failed to parse CSV. Please check format."])
+    end
+    return false
+  end
+end
+
+-- Expose Set DE/Bank function (uses menu permissions)
+function GuildRoll.RollWithEP_SetDEBank(playerName)
+  if not CanUseMenuFeatures() then
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(L["You don't have permission to set DE/Bank player."])
+    end
+    return
+  end
+  
+  if not GuildRoll.VARS then
+    GuildRoll.VARS = {}
+  end
+  
+  if playerName and playerName ~= "" then
+    GuildRoll.VARS.lootDE = StripRealm(playerName)
+    GuildRoll.VARS.lootDE_ML = StripRealm(UnitName("player"))
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(string.format(L["DE/Bank player set to: %s"], GuildRoll.VARS.lootDE))
+    end
+  else
+    GuildRoll.VARS.lootDE = nil
+    GuildRoll.VARS.lootDE_ML = nil
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint(L["DE/Bank player cleared."])
+    end
+  end
 end

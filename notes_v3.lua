@@ -53,7 +53,7 @@ local function _insertTagBeforeEP(officernote, tag)
   officernote = string.gsub(officernote, escapedTag, "")
   
   -- Try to find new {EP} pattern first (e.g., {123})
-  local prefix, ep, postfix = string.match(officernote, "^(.-)({%d+})(.*)$")
+  local _, _, prefix, ep, postfix = string.find(officernote, "^(.-)({%d+})(.*)$")
   
   if ep then
     -- Found new {EP} pattern; insert tag before it
@@ -61,7 +61,7 @@ local function _insertTagBeforeEP(officernote, tag)
   end
   
   -- Try to find legacy {EP:GP} pattern (e.g., {123:456})
-  prefix, epgp, postfix = string.match(officernote, "^(.-)({%d+:%d+})(.*)$")
+  _, _, prefix, epgp, postfix = string.find(officernote, "^(.-)({%d+:%d+})(.*)$")
   
   if epgp then
     -- Found legacy pattern; insert tag before it
@@ -128,7 +128,7 @@ function GuildRoll:init_notes_v3(guild_index,name,officernote)
     if hasLegacy then
       -- Convert {EP:GP} to {EP}
       -- Pattern captures: prefix, fullTag, epVal, gpVal, postfix (5 total)
-      local prefix, fullTag, epVal, gpVal, postfix = string.match(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
+      local _, _, prefix, fullTag, epVal, gpVal, postfix = string.find(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
       if epVal then
         -- NO backup of GP value - just convert to new format
         local newTag = string.format("{%d}", tonumber(epVal))
@@ -157,7 +157,7 @@ function GuildRoll:update_epgp_v3(ep,gp,guild_index,name,officernote,special_act
   local newnote
   if ep ~= nil then 
     -- Try to match legacy {EP:GP} format first
-    local prefix, fullTag, oldEP, oldGP, postfix = string.match(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
+    local _, _, prefix, fullTag, oldEP, oldGP, postfix = string.find(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
     if oldEP then
       -- Has legacy format - NO backup, just convert to new {EP} format
       newnote = string.gsub(officernote,"(.-)({%d+:%-?%d+})(.*)",function(prefix,tag,postfix)
@@ -290,7 +290,7 @@ function GuildRoll:migrateToEPOnly(throttleDelay)
     if success and name and officernote then
       -- Match {EP:GP} pattern (support optional negative GP)
       -- Pattern captures: prefix, fullTag, ep, gp, postfix (5 total)
-      local prefix, fullTag, ep, gp, postfix = string.match(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
+      local _, _, prefix, fullTag, ep, gp, postfix = string.find(officernote, "^(.-)({(%d+):(%-?%d+)})(.*)$")
       if ep and gp then
         table.insert(toMigrate, {
           name = name,
@@ -412,7 +412,7 @@ function GuildRoll:MovePublicMainTagsToOfficerNotes()
       -- Ensure publicNote and officerNote are strings
       if type(publicNote) == "string" and type(officerNote) == "string" then
         -- Check if public note contains a main tag pattern {name} (min 2 chars)
-        local mainTag = string.match(publicNote, "({%a%a%a*})")
+        local _, _, mainTag = string.find(publicNote, "({%a%a%a*})")
         if mainTag and type(mainTag) == "string" and string.len(mainTag) > 2 then
           -- Insert main tag before {EP:GP} in officer note first (to avoid data loss)
           local newOfficer = _insertTagBeforeEP(officerNote, mainTag)
