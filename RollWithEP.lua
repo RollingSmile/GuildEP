@@ -28,12 +28,9 @@ end
 -- RollWithEP-specific strings should be added to localization.lua instead
 -- For now, we just use the existing locale instance without registering new translations
 
--- Initialize saved variable for DE/Bank persistence
-if not GuildRoll.VARS then
-  GuildRoll.VARS = {}
-end
-GuildRoll.VARS.lootDE = GuildRoll.VARS.lootDE or nil
-GuildRoll.VARS.lootDE_ML = GuildRoll.VARS.lootDE_ML or nil
+-- Wait for GuildRoll table to be initialized before accessing it
+-- GuildRoll is created in guildroll.lua which loads after this file
+-- We'll initialize VARS in the functions that need them instead of at load time
 
 -- Constants - reuse PRIORITY_MAP from RollForEP concept
 local PRIORITY_MAP = {
@@ -1032,6 +1029,11 @@ function RollWithEP_GiveToDE()
   
   if not RollWithEP.currentSession then
     return
+  end
+  
+  -- Initialize VARS if needed
+  if not GuildRoll.VARS then
+    GuildRoll.VARS = {}
   end
   
   -- Check if DE player is set and still online
