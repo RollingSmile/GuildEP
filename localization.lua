@@ -228,6 +228,7 @@ Results will print here when done.]],
   -- Menu reorganization
   ["Quick Actions"] = true,
   ["EP Actions"] = true,
+  ["Members"] = true,
   ["Options"] = true,
   ["Admin Settings"] = true,
   ["Admin configuration options"] = true,

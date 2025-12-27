@@ -455,11 +455,30 @@ function GuildRoll:buildMenu()
       end
     }
     
-    options.args["loot_settings"].args["set_de_bank"] = {
+    -- Members Group
+    options.args["members"] = {
+      type = "group",
+      name = L["Members"],
+      desc = "Member and raid management",
+      order = 3,
+      args = {}
+    }
+    
+    -- Special Options submenu under Members
+    options.args["members"].args["special_options"] = {
+      type = "group",
+      name = "Special Options",
+      desc = "Special options for loot and member management",
+      order = 1,
+      args = {}
+    }
+    
+    -- Move DE/Bank to Special Options submenu
+    options.args["members"].args["special_options"].args["set_de_bank"] = {
       type = "execute",
       name = L["Set DE/Bank"],
       desc = L["Select player to receive DE/Bank items"],
-      order = 2,
+      order = 1,
       func = function()
         -- Build list of raid members
         local raidMembers = {}
@@ -526,7 +545,7 @@ function GuildRoll:buildMenu()
       type = "group",
       name = L["EP Actions"],
       desc = "EP management actions (admin only)",
-      order = 2,
+      order = 4,
       hidden = function() return not admin() end,
       args = {}
     }
