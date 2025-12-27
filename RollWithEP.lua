@@ -190,28 +190,33 @@ end
 -- Permission: RAID + Admin + Master Loot method + (Master Looter OR Raid Leader when no ML)
 local function CanUseRollWithEP()
   if not GuildRoll then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - GuildRoll not initialized")
     return false
   end
   
   -- Pre-check 1: Must be in a raid (not party, not solo)
   local ok, numRaidMembers = pcall(GetNumRaidMembers)
   if not ok or not numRaidMembers or numRaidMembers == 0 then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Not in raid (members=" .. tostring(numRaidMembers) .. ")")
     return false
   end
   
   -- Pre-check 2: Loot method must be Master Loot
   local lootMethod, mlPartyIndex, mlRaidIndex = GetLootMethod()
   if lootMethod ~= "master" then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Loot method not master (method=" .. tostring(lootMethod) .. ")")
     return false  -- Must be master loot
   end
   
   -- Pre-check 3: Must be Admin
   if not GuildRoll.IsAdmin then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - GuildRoll.IsAdmin function not found")
     return false
   end
   
   local ok, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
   if not ok or not isAdmin then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Not admin (isAdmin=" .. tostring(isAdmin) .. ")")
     return false
   end
   
@@ -220,9 +225,11 @@ local function CanUseRollWithEP()
   local isRl = IsRaidLeader()
   
   if not isMl and not isRl then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Not ML or RL (isMl=" .. tostring(isMl) .. ", isRl=" .. tostring(isRl) .. ")")
     return false
   end
   
+  DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse PASS - All checks OK")
   return true
 end
 
