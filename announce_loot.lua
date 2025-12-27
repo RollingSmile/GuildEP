@@ -251,7 +251,15 @@ local function OnLootOpened()
   
   -- Get number of loot slots
   local ok, numSlots = pcall(GetNumLootItems)
+  if GuildRoll and GuildRoll.defaultPrint then
+    pcall(function() 
+      GuildRoll:defaultPrint(string.format("GetNumLootItems: ok=%s, numSlots=%s", tostring(ok), tostring(numSlots)))
+    end)
+  end
   if not ok or not numSlots or numSlots == 0 then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint("LOOT_OPENED: No loot items or error getting loot") end)
+    end
     return
   end
   
