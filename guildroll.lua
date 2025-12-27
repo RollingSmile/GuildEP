@@ -2301,7 +2301,7 @@ function GuildRoll:buildDEBankMemberTable(raidMembers)
     type = "execute",
     name = L["Clear"],
     desc = "Clear DE/Bank player assignment",
-    order = 0,
+    order = 1,
     func = function()
       if GuildRoll and GuildRoll.RollWithEP_SetDEBank then
         pcall(function() GuildRoll.RollWithEP_SetDEBank(nil) end)
@@ -2314,7 +2314,7 @@ function GuildRoll:buildDEBankMemberTable(raidMembers)
     type = "group",
     name = "Members",
     desc = "Select a raid member to receive DE/Bank items",
-    order = 1,
+    order = 2,
     args = {}
   }
   
