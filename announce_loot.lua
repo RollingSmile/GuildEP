@@ -17,24 +17,38 @@ end
 -- Permission: RAID + Admin + Master Loot + Master Looter
 -- This ensures loot announcements only happen when managing loot with master loot enabled
 local function IsAdminAndMLOrRLWhenNoML()
+  local debugMsg = "Loot permission check: "
+  
   if not GuildRoll or not GuildRoll.IsAdmin then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - GuildRoll not loaded") end)
+    end
     return false
   end
   
   -- Pre-check: Must be in a raid (not party, not solo)
   local ok, numRaidMembers = pcall(GetNumRaidMembers)
   if not ok or not numRaidMembers or numRaidMembers == 0 then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Not in raid (members=" .. tostring(numRaidMembers) .. ")") end)
+    end
     return false
   end
   
   local success, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
   if not success or not isAdmin then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Not admin") end)
+    end
     return false
   end
   
   -- Must be master loot method
   local ok, method = pcall(GetLootMethod)
   if not ok or method ~= "master" then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Loot method not master (method=" .. tostring(method) .. ")") end)
+    end
     return false
   end
   
@@ -42,7 +56,18 @@ local function IsAdminAndMLOrRLWhenNoML()
   if GuildRoll.lootMaster then
     local ok, isMasterLooter = pcall(function() return GuildRoll:lootMaster() end)
     if ok and isMasterLooter then
+      if GuildRoll and GuildRoll.defaultPrint then
+        pcall(function() GuildRoll:defaultPrint(debugMsg .. "PASS - All checks OK") end)
+      end
       return true
+    else
+      if GuildRoll and GuildRoll.defaultPrint then
+        pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Not master looter (isMasterLooter=" .. tostring(isMasterLooter) .. ")") end)
+      end
+    end
+  else
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - GuildRoll.lootMaster function not found") end)
     end
   end
   
