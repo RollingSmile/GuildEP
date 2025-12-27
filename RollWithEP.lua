@@ -5,23 +5,42 @@
 
 -- Guard: Check if required libraries are available
 local T, D, C, L
+local librariesLoaded = false
 do
   local ok, result = pcall(function() return AceLibrary("Tablet-2.0") end)
-  if not ok or not result then return end
+  if not ok or not result then 
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: Failed to load Tablet-2.0")
+    return 
+  end
   T = result
   
   ok, result = pcall(function() return AceLibrary("Dewdrop-2.0") end)
-  if not ok or not result then return end
+  if not ok or not result then 
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: Failed to load Dewdrop-2.0")
+    return 
+  end
   D = result
   
   ok, result = pcall(function() return AceLibrary("Crayon-2.0") end)
-  if not ok or not result then return end
+  if not ok or not result then 
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: Failed to load Crayon-2.0")
+    return 
+  end
   C = result
   
   ok, result = pcall(function() return AceLibrary("AceLocale-2.2") end)
-  if not ok or not result or type(result.new) ~= "function" then return end
+  if not ok or not result or type(result.new) ~= "function" then 
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: Failed to load AceLocale-2.2")
+    return 
+  end
   ok, L = pcall(function() return result:new("guildroll") end)
-  if not ok or not L then return end
+  if not ok or not L then 
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: Failed to create locale instance")
+    return 
+  end
+  
+  librariesLoaded = true
+  DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: All libraries loaded successfully")
 end
 
 -- Use existing localization from localization.lua
@@ -55,6 +74,59 @@ local RollWithEP = {
   currentMasterLooter = nil,
   lootSlots = {}  -- Cached loot slots from current loot window
 }
+
+-- Integration: Initialize new roll tracking system
+-- Tracker instance for storing and sorting rolls
+RollWithEP.tracker = nil
+-- Chat parser for normalizing roll messages
+RollWithEP.parser = GuildRoll_ChatParser
+
+-- Initialize tracker (lazy init to avoid errors if module not loaded)
+local function InitTracker()
+  if not RollWithEP.tracker and GuildRoll_RollTracker then
+    RollWithEP.tracker = GuildRoll_RollTracker:new()
+  end
+  return RollWithEP.tracker
+end
+
+-- Ensure GuildRoll table exists for early function definitions
+if not GuildRoll then
+  GuildRoll = {}
+end
+
+-- Public API: Show new RollTable UI
+function GuildRoll.RollWithEP_ShowRollTable()
+  if not GuildRoll_RollTableUI then
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint("RollTableUI module not loaded")
+    end
+    return
+  end
+  
+  -- Initialize tracker if needed
+  local tracker = InitTracker()
+  if not tracker then
+    if GuildRoll and GuildRoll.defaultPrint then
+      GuildRoll:defaultPrint("RollTracker module not loaded")
+    end
+    return
+  end
+  
+  -- Get rolls from tracker
+  local rolls = tracker:getAll()
+  
+  -- Get SR lookup from cache
+  local srLookup = {}
+  if GuildRoll_rollForEPCache and GuildRoll_rollForEPCache.lastImport and GuildRoll_rollForEPCache.lastImport.srlist then
+    srLookup = GuildRoll_rollForEPCache.lastImport.srlist
+  elseif GuildRoll and GuildRoll._RollForEP_currentLoot and GuildRoll._RollForEP_currentLoot.srlist then
+    srLookup = GuildRoll._RollForEP_currentLoot.srlist
+  end
+  
+  -- Show and refresh UI
+  GuildRoll_RollTableUI:show()
+  GuildRoll_RollTableUI:refresh(rolls, srLookup)
+end
 
 -- Helper: Strip realm suffix from player name
 local function StripRealm(name)
@@ -118,28 +190,33 @@ end
 -- Permission: RAID + Admin + Master Loot method + (Master Looter OR Raid Leader when no ML)
 local function CanUseRollWithEP()
   if not GuildRoll then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - GuildRoll not initialized")
     return false
   end
   
   -- Pre-check 1: Must be in a raid (not party, not solo)
   local ok, numRaidMembers = pcall(GetNumRaidMembers)
   if not ok or not numRaidMembers or numRaidMembers == 0 then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Not in raid (members=" .. tostring(numRaidMembers) .. ")")
     return false
   end
   
   -- Pre-check 2: Loot method must be Master Loot
   local lootMethod, mlPartyIndex, mlRaidIndex = GetLootMethod()
   if lootMethod ~= "master" then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Loot method not master (method=" .. tostring(lootMethod) .. ")")
     return false  -- Must be master loot
   end
   
   -- Pre-check 3: Must be Admin
   if not GuildRoll.IsAdmin then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - GuildRoll.IsAdmin function not found")
     return false
   end
   
   local ok, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
   if not ok or not isAdmin then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Not admin (isAdmin=" .. tostring(isAdmin) .. ")")
     return false
   end
   
@@ -148,9 +225,11 @@ local function CanUseRollWithEP()
   local isRl = IsRaidLeader()
   
   if not isMl and not isRl then
+    DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse FAIL - Not ML or RL (isMl=" .. tostring(isMl) .. ", isRl=" .. tostring(isRl) .. ")")
     return false
   end
   
+  DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: CanUse PASS - All checks OK")
   return true
 end
 
@@ -502,6 +581,19 @@ end
 
 -- Event handler: CHAT_MSG_SYSTEM (system roll messages)
 local function OnSystemMessage(msg)
+  -- Always try to parse and add to tracker if tracker is available
+  local tracker = InitTracker()
+  if tracker and RollWithEP.parser then
+    local roll = RollWithEP.parser:parse(msg)
+    if roll then
+      tracker:add(roll)
+      -- Auto-refresh RollTable if it's visible
+      if GuildRoll_RollTableUI and GuildRoll_RollTableUI.frame and GuildRoll_RollTableUI.frame:IsShown() then
+        GuildRoll.RollWithEP_ShowRollTable()
+      end
+    end
+  end
+  
   if not RollWithEP.enabled or not RollWithEP.currentSession then return end
   
   -- Parse: "Name rolls N (min-max)"
@@ -528,6 +620,19 @@ end
 
 -- Event handler: CHAT_MSG_RAID and CHAT_MSG_RAID_LEADER (human announces)
 local function OnRaidMessage(msg, sender)
+  -- Always try to parse and add to tracker if tracker is available
+  local tracker = InitTracker()
+  if tracker and RollWithEP.parser then
+    local roll = RollWithEP.parser:parse(msg)
+    if roll then
+      tracker:add(roll)
+      -- Auto-refresh RollTable if it's visible
+      if GuildRoll_RollTableUI and GuildRoll_RollTableUI.frame and GuildRoll_RollTableUI.frame:IsShown() then
+        GuildRoll.RollWithEP_ShowRollTable()
+      end
+    end
+  end
+  
   if not RollWithEP.enabled or not RollWithEP.currentSession then return end
   
   sender = StripRealm(sender)
@@ -670,13 +775,21 @@ function BuildTablet()
   -- Actions
   if not session.closed then
     if session.tieState then
+      -- TODO: Migrate to new RollTable UI - temporarily disabled
       -- Show Ask Tie Roll button
+      --[[
       T:AddLine(
         "text", "[" .. L["Ask Tie Roll"] .. "]",
         "textR", 1, "textG", 0.5, "textB", 0,
         "func", function()
           RollWithEP_AskTieRoll()
         end
+      )
+      ]]--
+      -- For now, show a placeholder message
+      T:AddLine(
+        "text", "[Tie detected - New UI coming soon]",
+        "textR", 1, "textG", 0.5, "textB", 0
       )
     else
       -- Show Stop Rolls button
@@ -1256,9 +1369,13 @@ end
 -- Public API for integration
 GuildRoll.RollWithEP_StartRollForItem = RollWithEP_StartRollForItem
 
+-- Debug: Confirm we're defining the UI function
+DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: About to define RollWithEP_ShowLootUI function")
+
 -- API: Show loot UI with item list
 -- Called by announce_loot.lua when loot window opens
 function GuildRoll.RollWithEP_ShowLootUI(lootItems)
+  DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: ShowLootUI called with " .. tostring(lootItems and table.getn(lootItems) or 0) .. " items")
   if not CanUseRollWithEP() then
     return
   end
@@ -1305,6 +1422,23 @@ function GuildRoll.RollWithEP_ShowLootUI(lootItems)
     pcall(function() T:Open("RollWithEP_Loot") end)
   end
   pcall(function() T:Refresh("RollWithEP_Loot") end)
+  
+  -- Force tablet to top layer (pfUI compatibility)
+  pcall(function()
+    local frame = T:GetFrame("RollWithEP_Loot")
+    if frame then
+      frame:SetFrameStrata("TOOLTIP")
+      frame:SetFrameLevel(100)
+      frame:Raise()
+    end
+  end)
+  
+  -- Debug message
+  if GuildRoll and GuildRoll.defaultPrint then
+    pcall(function()
+      GuildRoll:defaultPrint(string.format("Loot UI opened with %d items", table.getn(lootItems)))
+    end)
+  end
 end
 
 -- UI: Build loot tablet
@@ -1347,6 +1481,14 @@ function ShowItemContextMenu(itemLink, itemID, itemName, slotIndex)
   pcall(function()
     D:Open("RollWithEP_ItemMenu",
       "children", function()
+        -- Title
+        D:AddLine(
+          "text", L["Give loot to"] or "Give loot to",
+          "isTitle", true
+        )
+        D:AddLine()
+        
+        -- Start Rolls
         D:AddLine(
           "text", L["Start Rolls"],
           "func", function()
@@ -1354,46 +1496,68 @@ function ShowItemContextMenu(itemLink, itemID, itemName, slotIndex)
             pcall(function() D:Close() end)
           end
         )
+        
+        -- Show Roll Table
         D:AddLine(
-          "text", L["Give to DE/Bank"],
+          "text", "Show Roll Table",
           "func", function()
-            -- Create a temporary session for DE/Bank only
-            RollWithEP.currentSession = {
-              itemLink = itemLink,
-              itemID = itemID,
-              itemName = itemName,
-              slotIndex = slotIndex,
-              rolls = {},
-              systemRolls = {},
-              humanAnnounces = {},
-              startTime = GetTime(),
-              closed = true,
-              winner = nil,
-              tieState = nil
-            }
-            RollWithEP_GiveToDE()
+            if GuildRoll and GuildRoll.RollWithEP_ShowRollTable then
+              GuildRoll.RollWithEP_ShowRollTable()
+            end
             pcall(function() D:Close() end)
           end
         )
+        
+        D:AddLine()
+        
+        -- Special submenu
         D:AddLine(
-          "text", L["Give to Player"],
-          "func", function()
-            -- Create a temporary session for Give to Player only
-            RollWithEP.currentSession = {
-              itemLink = itemLink,
-              itemID = itemID,
-              itemName = itemName,
-              slotIndex = slotIndex,
-              rolls = {},
-              systemRolls = {},
-              humanAnnounces = {},
-              startTime = GetTime(),
-              closed = true,
-              winner = nil,
-              tieState = nil
-            }
-            ShowPlayerPicker()
-            pcall(function() D:Close() end)
+          "text", "Special",
+          "hasArrow", true,
+          "hasSlantedArrow", true,
+          "children", function()
+            D:AddLine(
+              "text", L["Give to DE/Bank"],
+              "func", function()
+                -- Create a temporary session for DE/Bank only
+                RollWithEP.currentSession = {
+                  itemLink = itemLink,
+                  itemID = itemID,
+                  itemName = itemName,
+                  slotIndex = slotIndex,
+                  rolls = {},
+                  systemRolls = {},
+                  humanAnnounces = {},
+                  startTime = GetTime(),
+                  closed = true,
+                  winner = nil,
+                  tieState = nil
+                }
+                RollWithEP_GiveToDE()
+                pcall(function() D:Close() end)
+              end
+            )
+            D:AddLine(
+              "text", L["Give to Player"],
+              "func", function()
+                -- Create a temporary session for Give to Player only
+                RollWithEP.currentSession = {
+                  itemLink = itemLink,
+                  itemID = itemID,
+                  itemName = itemName,
+                  slotIndex = slotIndex,
+                  rolls = {},
+                  systemRolls = {},
+                  humanAnnounces = {},
+                  startTime = GetTime(),
+                  closed = true,
+                  winner = nil,
+                  tieState = nil
+                }
+                ShowPlayerPicker()
+                pcall(function() D:Close() end)
+              end
+            )
           end
         )
       end
@@ -1558,4 +1722,94 @@ function GuildRoll.RollWithEP_SetDEBank(playerName)
       GuildRoll:defaultPrint(L["DE/Bank player cleared."])
     end
   end
+end
+
+-- Expose new RollTableUI integration point for announce_loot.lua
+-- This is a placeholder that will be expanded in future iterations
+function GuildRoll.RollTableUI_ShowLootUI(lootItems)
+  DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: RollTableUI_ShowLootUI called with " .. tostring(lootItems and table.getn(lootItems) or 0) .. " items")
+  -- For now, just delegate to the existing ShowRollTable function
+  -- In future iterations, this will handle loot items and populate the tracker
+  if GuildRoll.RollWithEP_ShowRollTable then
+    GuildRoll.RollWithEP_ShowRollTable()
+  end
+end
+
+-- Debug: Confirm we defined both UI functions
+DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: Defined both ShowLootUI functions - RollWithEP=" .. tostring(GuildRoll.RollWithEP_ShowLootUI ~= nil) .. ", RollTableUI=" .. tostring(GuildRoll.RollTableUI_ShowLootUI ~= nil))
+
+-- ============================================================================
+-- Loot Frame Hooks - Override WoW's default master loot menu
+-- ============================================================================
+
+-- Hook LootButton right-click to show our custom menu
+local function HookLootButtons()
+  -- Only hook if we can use RollWithEP and we're master looter
+  if not CanUseRollWithEP() then
+    return
+  end
+  
+  -- Hook LootButton clicks (there are multiple buttons: LootButton1, LootButton2, etc.)
+  for i = 1, 16 do  -- WoW 1.12 typically has up to 16 loot slots
+    local buttonName = "LootButton" .. i
+    local button = getglobal(buttonName)
+    
+    if button and not button.RollWithEP_Hooked then
+      -- Store original OnClick
+      local originalOnClick = button:GetScript("OnClick")
+      
+      -- Override OnClick
+      button:SetScript("OnClick", function()
+        local slot = this:GetID()
+        
+        -- Get loot info
+        local lootIcon, lootName, lootQuantity, lootQuality = GetLootSlotInfo(slot)
+        
+        -- Check if it's a valid item and if right-click (arg1 == "RightButton" in 1.12)
+        if arg1 == "RightButton" and lootName and lootQuality and lootQuality >= 2 then
+          -- Get item link
+          local itemLink = GetLootSlotLink(slot)
+          
+          if itemLink then
+            -- Extract item ID from link
+            local _, _, itemID = string.find(itemLink, "item:(%d+)")
+            
+            if itemID and CanUseRollWithEP() then
+              -- Show our custom menu
+              ShowItemContextMenu(itemLink, tonumber(itemID), lootName, slot)
+              return
+            end
+          end
+        end
+        
+        -- Call original handler if not intercepted
+        if originalOnClick then
+          originalOnClick()
+        end
+      end)
+      
+      button.RollWithEP_Hooked = true
+    end
+  end
+end
+
+-- Register hook on LOOT_OPENED event
+if GuildRoll then
+  pcall(function()
+    GuildRoll:RegisterEvent("LOOT_OPENED", function()
+      -- Small delay to ensure loot frame is fully loaded
+      pcall(function()
+        -- Use a timer-like approach with OnUpdate
+        local frame = CreateFrame("Frame")
+        local elapsed = 0
+        frame:SetScript("OnUpdate", function()
+          elapsed = elapsed + arg1
+          if elapsed >= 0.1 then  -- 100ms delay
+            HookLootButtons()
+            frame:SetScript("OnUpdate", nil)
+          end
+        end)
+      end)
+    end)
+  end)
 end

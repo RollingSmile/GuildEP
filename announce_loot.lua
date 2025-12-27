@@ -2,9 +2,16 @@
 local L
 do
   local ok, result = pcall(function() return AceLibrary("AceLocale-2.2") end)
-  if not ok or not result or type(result.new) ~= "function" then return end
+  if not ok or not result or type(result.new) ~= "function" then 
+    DEFAULT_CHAT_FRAME:AddMessage("announce_loot: FAILED to load - AceLocale-2.2 not available")
+    return 
+  end
   ok, L = pcall(function() return result:new("guildroll") end)
-  if not ok or not L then return end
+  if not ok or not L then 
+    DEFAULT_CHAT_FRAME:AddMessage("announce_loot: FAILED to load - could not create locale instance")
+    return 
+  end
+  DEFAULT_CHAT_FRAME:AddMessage("announce_loot: Successfully loaded with AceLocale")
 end
 
 -- Helper: Strip realm suffix from player name
@@ -17,24 +24,38 @@ end
 -- Permission: RAID + Admin + Master Loot + Master Looter
 -- This ensures loot announcements only happen when managing loot with master loot enabled
 local function IsAdminAndMLOrRLWhenNoML()
+  local debugMsg = "Loot permission check: "
+  
   if not GuildRoll or not GuildRoll.IsAdmin then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - GuildRoll not loaded") end)
+    end
     return false
   end
   
   -- Pre-check: Must be in a raid (not party, not solo)
   local ok, numRaidMembers = pcall(GetNumRaidMembers)
   if not ok or not numRaidMembers or numRaidMembers == 0 then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Not in raid (members=" .. tostring(numRaidMembers) .. ")") end)
+    end
     return false
   end
   
   local success, isAdmin = pcall(function() return GuildRoll:IsAdmin() end)
   if not success or not isAdmin then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Not admin") end)
+    end
     return false
   end
   
   -- Must be master loot method
   local ok, method = pcall(GetLootMethod)
   if not ok or method ~= "master" then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Loot method not master (method=" .. tostring(method) .. ")") end)
+    end
     return false
   end
   
@@ -42,7 +63,18 @@ local function IsAdminAndMLOrRLWhenNoML()
   if GuildRoll.lootMaster then
     local ok, isMasterLooter = pcall(function() return GuildRoll:lootMaster() end)
     if ok and isMasterLooter then
+      if GuildRoll and GuildRoll.defaultPrint then
+        pcall(function() GuildRoll:defaultPrint(debugMsg .. "PASS - All checks OK") end)
+      end
       return true
+    else
+      if GuildRoll and GuildRoll.defaultPrint then
+        pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - Not master looter (isMasterLooter=" .. tostring(isMasterLooter) .. ")") end)
+      end
+    end
+  else
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint(debugMsg .. "FAIL - GuildRoll.lootMaster function not found") end)
     end
   end
   
@@ -219,7 +251,15 @@ local function OnLootOpened()
   
   -- Get number of loot slots
   local ok, numSlots = pcall(GetNumLootItems)
+  if GuildRoll and GuildRoll.defaultPrint then
+    pcall(function() 
+      GuildRoll:defaultPrint(string.format("GetNumLootItems: ok=%s, numSlots=%s", tostring(ok), tostring(numSlots)))
+    end)
+  end
   if not ok or not numSlots or numSlots == 0 then
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function() GuildRoll:defaultPrint("LOOT_OPENED: No loot items or error getting loot") end)
+    end
     return
   end
   
@@ -337,10 +377,51 @@ local function OnLootOpened()
   -- Integration point: Open RollWithEP UI if module is loaded
   -- The RollWithEP module provides interactive roll management UI
   -- Only call if there are qualifying items
-  if table.getn(lootItems) > 0 and GuildRoll and GuildRoll.RollWithEP_ShowLootUI then
-    pcall(function()
-      GuildRoll.RollWithEP_ShowLootUI(lootItems)
-    end)
+  if table.getn(lootItems) > 0 then
+    -- Debug: Check which UI functions are available
+    if GuildRoll and GuildRoll.defaultPrint then
+      pcall(function()
+        local hasRollTableUI = (GuildRoll.RollTableUI_ShowLootUI ~= nil)
+        local hasRollWithEPUI = (GuildRoll.RollWithEP_ShowLootUI ~= nil)
+        GuildRoll:defaultPrint(string.format("UI check: RollTableUI=%s, RollWithEPUI=%s, items=%d", 
+          tostring(hasRollTableUI), tostring(hasRollWithEPUI), table.getn(lootItems)))
+        
+        -- Debug: List all keys in GuildRoll table that contain "Show"
+        local keys = {}
+        for k, v in pairs(GuildRoll) do
+          if type(k) == "string" and string.find(k, "Show") then
+            table.insert(keys, k .. "=" .. type(v))
+          end
+        end
+        if table.getn(keys) > 0 then
+          GuildRoll:defaultPrint("GuildRoll keys with 'Show': " .. table.concat(keys, ", "))
+        else
+          GuildRoll:defaultPrint("GuildRoll: NO keys containing 'Show' found!")
+        end
+      end)
+    end
+    
+    -- Try new RollTableUI first
+    if GuildRoll and GuildRoll.RollTableUI_ShowLootUI then
+      if GuildRoll and GuildRoll.defaultPrint then
+        pcall(function() GuildRoll:defaultPrint("Calling RollTableUI_ShowLootUI...") end)
+      end
+      pcall(function()
+        GuildRoll.RollTableUI_ShowLootUI(lootItems)
+      end)
+    -- Fallback to existing RollWithEP UI
+    elseif GuildRoll and GuildRoll.RollWithEP_ShowLootUI then
+      if GuildRoll and GuildRoll.defaultPrint then
+        pcall(function() GuildRoll:defaultPrint("Calling RollWithEP_ShowLootUI...") end)
+      end
+      pcall(function()
+        GuildRoll.RollWithEP_ShowLootUI(lootItems)
+      end)
+    else
+      if GuildRoll and GuildRoll.defaultPrint then
+        pcall(function() GuildRoll:defaultPrint("ERROR: No UI function available!") end)
+      end
+    end
   end
 end
 
