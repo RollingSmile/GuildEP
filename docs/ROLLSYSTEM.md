@@ -69,10 +69,19 @@ The main integration points added:
 - Tracker initialization: `RollWithEP.tracker = RollTracker:new()`
 - Parser integration: `RollWithEP.parser = ChatParser`
 - UI hook: `RollWithEP.ShowRollTable()` function to open the new UI
-- Chat event registration for parsing rolls
+- Chat event registration for parsing rolls:
+  - `CHAT_MSG_SYSTEM` - Parses built-in /roll messages
+  - `CHAT_MSG_RAID` and `CHAT_MSG_RAID_LEADER` - Parses addon button messages
+  - Rolls are automatically added to tracker when detected
 
 ### announce_loot.lua
 Modified to call `GuildRoll.RollTableUI_ShowLootUI(lootItems)` if available.
+
+### guildroll.lua
+Menu structure updated:
+- CSV import available in "Loot Settings" menu
+- New "Members" menu with "Special Options" submenu
+- DE/Bank configuration moved to Members > Special Options
 
 ## Testing the Skeleton
 
@@ -112,25 +121,28 @@ Try these sample messages in chat to verify parsing:
 
 ## Known Limitations (This PR)
 
-This is a skeleton implementation. The following features are NOT yet complete:
-- Full addon button pattern parsing (only basic patterns included)
-- Complete menu integration (Clear roll/Tie roll removal is partial)
-- CSV import UI
+This implementation includes the core infrastructure. The following features are complete:
+- ✅ Chat event handlers populate tracker with rolls from /roll and addon buttons
+- ✅ ChatParser supports SR, MS, OS, EP, Tmog, and numeric button patterns (101, 100, 99, 98)
+- ✅ "Ask Tie Roll" menu entry disabled with placeholder message
+- ✅ CSV import UI available in Loot Settings menu
+- ✅ Members menu with DE/Bank in Special Options submenu
+
+Still TODO for future iterations:
+- Full integration of RollTableUI with loot session workflow
 - Polish and error handling
-- Complete soft reserve integration
-- Tie-breaking with new system
+- Complete soft reserve integration with tracker
+- Enhanced tie-breaking with new system
+- Auto-refresh RollTable when new rolls arrive
 
 ## Next Steps
 
-Future PRs will:
-1. Complete removal of "Clear roll" and "Ask Tie Roll" menu entries
-2. Implement full "Request rolls" menu opening the new RollTable
-3. Add Members menu structure with "DE/Bank" in Special options
-4. Enhance ChatParser with all addon button patterns
-5. Add CSV import UI for soft reserves
-6. Polish RollTableUI with better formatting and interactivity
-7. Add comprehensive error handling
-8. Integrate roll tracking with existing EP system
+Future PRs may include:
+1. Auto-open RollTable when "Request rolls" is clicked
+2. Polish RollTableUI with better formatting, scrolling, and interactivity
+3. Add comprehensive error handling and edge case coverage
+4. Full integration of roll tracking with existing EP system
+5. Enhanced SR lookup integration with RollTable display
 
 ## Development Notes
 
