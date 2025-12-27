@@ -1369,9 +1369,13 @@ end
 -- Public API for integration
 GuildRoll.RollWithEP_StartRollForItem = RollWithEP_StartRollForItem
 
+-- Debug: Confirm we're defining the UI function
+DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: About to define RollWithEP_ShowLootUI function")
+
 -- API: Show loot UI with item list
 -- Called by announce_loot.lua when loot window opens
 function GuildRoll.RollWithEP_ShowLootUI(lootItems)
+  DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: ShowLootUI called with " .. tostring(lootItems and table.getn(lootItems) or 0) .. " items")
   if not CanUseRollWithEP() then
     return
   end
@@ -1723,12 +1727,16 @@ end
 -- Expose new RollTableUI integration point for announce_loot.lua
 -- This is a placeholder that will be expanded in future iterations
 function GuildRoll.RollTableUI_ShowLootUI(lootItems)
+  DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: RollTableUI_ShowLootUI called with " .. tostring(lootItems and table.getn(lootItems) or 0) .. " items")
   -- For now, just delegate to the existing ShowRollTable function
   -- In future iterations, this will handle loot items and populate the tracker
   if GuildRoll.RollWithEP_ShowRollTable then
     GuildRoll.RollWithEP_ShowRollTable()
   end
 end
+
+-- Debug: Confirm we defined both UI functions
+DEFAULT_CHAT_FRAME:AddMessage("RollWithEP: Defined both ShowLootUI functions - RollWithEP=" .. tostring(GuildRoll.RollWithEP_ShowLootUI ~= nil) .. ", RollTableUI=" .. tostring(GuildRoll.RollTableUI_ShowLootUI ~= nil))
 
 -- ============================================================================
 -- Loot Frame Hooks - Override WoW's default master loot menu
